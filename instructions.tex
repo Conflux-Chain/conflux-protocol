@@ -1,0 +1,669 @@
+% !TEX root=./tech-specification.tex
+
+\section{Virtual Machine Specification}
+\label{app:vm}
+
+\subsection{Gas Cost}
+
+Recalling that $w$ denotes the current operation to be executed as in (\ref{eq:currentoperation}):
+% Given the execution environment tuple $I$ as in Section~\ref{subsubsec:exe_env},
+% let $w$ denote the current instruction specified in \hyperlink{I__b}{$I_{\vec{b}}$} as: 
+\begin{equation*}
+w \eqdef \begin{cases} I_{\vec{b}}[\mst_{\mathrm{pc}}] & \text{if} \quad \mst_{\mathrm{pc}} < \lVert I_{\mathbf{b}} \rVert\\
+\op{STOP} & \text{otherwise}
+\end{cases}
+\end{equation*}
+
+The general gas cost function, $\cost$, is defined as:
+
+\begin{equation}\label{eq:gas_cost}
+\cost(\st, \mst, I) \equiv \cost_{mem}(\mst'_{\mathrm{i}})-\cost_{mem}(\mst_{\mathrm{i}}) + \begin{cases}
+G_{sset} & \text{if} \quad w = \hyperlink{SSTORE}{\op{SSTORE}} \\
+G_{exp} & \text{if} \quad w = \op{EXP} \wedge \mst_{\mathbf{s}}[1] = 0 \\
+G_{exp} + G_{expbyte}\times(1+\lfloor\log_{256}(\mst_{\mathbf{s}}[1])\rfloor) & \text{if} \quad w = \op{EXP} \wedge \mst_{\mathbf{s}}[1] > 0 \\
+G_{verylow} + G_{copy}\times\lceil\mst_{\mathbf{s}}[2] \div 32\rceil & \text{if} \quad w = \op{CALLDATACOPY} \> \lor \\
+&\quad \op{CODECOPY} \lor \op{RETURNDATACOPY} \\
+G_{extcode} + G_{copy}\times\lceil\mst_{\mathbf{s}}[3] \div 32\rceil & \text{if} \quad w = \op{EXTCODECOPY} \\
+G_{log}+G_{logdata}\times\mst_{\mathbf{s}}[1] & \text{if} \quad w = \op{LOG0} \\
+G_{log}+G_{logdata}\times\mst_{\mathbf{s}}[1]+G_{logtopic} & \text{if} \quad w = \op{LOG1} \\
+G_{log}+G_{logdata}\times\mst_{\mathbf{s}}[1]+2G_{logtopic} & \text{if} \quad w = \op{LOG2} \\
+G_{log}+G_{logdata}\times\mst_{\mathbf{s}}[1]+3G_{logtopic} & \text{if} \quad w = \op{LOG3} \\
+G_{log}+G_{logdata}\times\mst_{\mathbf{s}}[1]+4G_{logtopic} & \text{if} \quad w = \op{LOG4} \\
+C_\text{\tiny CALL}(\st, \mst) & \text{if} \quad w = \op{CALL} \lor \op{CALLCODE} \> \lor \\
+&\quad\op{DELEGATECALL} \\
+C_\text{\tiny SUICIDE}(\st, \mst) & \text{if} \quad w = \op{SUICIDE} \\
+G_{create}+G_{sha3word} \times \lceil \mst_{\mathbf{s}}[2] \div 32 \rceil & \text{if} \quad w = \op{\hyperlink{create}{CREATE}}\\
+G_{create}+G_{sha3word} \times \lceil \mst_{\mathbf{s}}[2] \div 32 \rceil & \text{if} \quad w = \op{\hyperlink{CREATE2}{CREATE2}}\\
+G_{sha3}+G_{sha3word} \times \lceil \mst_{\mathbf{s}}[1] \div 32 \rceil & \text{if} \quad w = \op{SHA3}\\
+G_{jumpdest} & \text{if} \quad w = \op{JUMPDEST}\\
+G_{sload} & \text{if} \quad w = \op{SLOAD}\\
+G_{zero} & \text{if} \quad w \in W_{zero}\\
+G_{base} & \text{if} \quad w \in W_{base}\\
+G_{verylow} & \text{if} \quad w \in W_{verylow}\\
+G_{\mathrm{low}} & \text{if} \quad w \in W_{\mathrm{low}}\\
+G_{mid} & \text{if} \quad w \in W_{mid}\\
+G_{\mathrm{high}} & \text{if} \quad w \in W_{\mathrm{high}}\\
+G_{extcode} & \text{if} \quad w = \op{EXTCODESIZE}\\
+G_{extcodehash} & \text{if} \quad w = \op{\hyperlink{extcodehash}{EXTCODEHASH}}\\
+G_{balance} & \text{if} \quad w = \op{BALANCE}\\
+G_{blockhash} & \text{if} \quad w = \op{\hyperlink{blockhash}{BLOCKHASH}}\\
+\end{cases}
+\end{equation}
+
+
+where:
+\begin{equation}
+C_{mem}(a) \equiv G_{memory} \cdot a + \left\lfloor \dfrac{a^2}{512} \right\rfloor
+\end{equation}
+
+with $C_\text{\tiny CALL}$ and $C_\text{\tiny SUICIDE}$ as specified in the appropriate section below. We define the following subsets of instructions:
+
+$W_{zero}$ = \{$\op{STOP}$, $\op{RETURN}$, $\op{REVERT}$\}
+
+$W_{base}$ = \{$\op{ADDRESS}$, $\op{ORIGIN}$, $\op{CALLER}$, $\op{CALLVALUE}$, $\op{CALLDATASIZE}$, $\op{CODESIZE}$, $\op{GASPRICE}$, $\op{COINBASE}$,
+\newline \noindent\hspace*{1.75cm} $\op{TIMESTAMP}$, $\op{NUMBER}$, $\op{DIFFICULTY}$, $\op{GASLIMIT}$, $\op{RETURNDATASIZE}$, $\op{POP}$, $\op{PC}$, $\op{MSIZE}$, $\op{GAS}$, 
+\newline \noindent\hspace*{1.75cm} $\op{CHAINID}$, $\op{BEGINSUB}$\}
+
+$W_{verylow}$ = \{$\op{ADD}$, $\op{SUB}$, $\op{NOT}$, $\op{LT}$, $\op{GT}$, $\op{SLT}$, $\op{SGT}$, $\op{EQ}$, $\op{ISZERO}$, $\op{AND}$, $\op{OR}$, $\op{XOR}$, $\op{BYTE}$, $\op{SHL}$, $\op{SHR}$, $\op{SAR}$, 
+\newline \noindent\hspace*{1.75cm} $\op{CALLDATALOAD}$, $\op{MLOAD}$, $\op{MSTORE}$, $\op{MSTORE8}$, $\op{PUSH*}$, $\op{DUP*}$, $\op{SWAP*}$\}
+
+$W_{\mathrm{low}}$ = \{$\op{MUL}$, $\op{DIV}$, $\op{SDIV}$, $\op{MOD}$, $\op{SMOD}$, $\op{SIGNEXTEND}$, $\op{SELFBALANCE}$, $\op{RETURNSUB}$\}
+
+$W_{mid}$ = \{$\op{ADDMOD}$, $\op{MULMOD}$, $\op{JUMP}$\}
+
+$W_{\mathrm{high}}$ = \{$\op{JUMPI}$, $\op{JUMPSUB}$\}
+
+Note the memory cost component, given as the product of $G_{memory}$ and the maximum of 0 \& the ceiling of the number of words in size that the memory must be over the current number of words, $\mst_{\mathrm{i}}$ in order that all accesses reference valid memory whether for read or write. Such accesses must be for non-zero number of bytes.
+
+Referencing a zero length range (e.g. by attempting to pass it as the input range to a CALL) does not require memory to be extended to the beginning of the range. $\mst'_{\mathrm{i}}$ is defined as this new maximum number of words of active memory; special-cases are given where these two are not equal.
+
+Note also that $C_{mem}$ is the memory cost function (the expansion function being the difference between the cost before and after). It is a polynomial, with the higher-order coefficient divided and floored, and thus linear up to 724B of memory used, after which it costs substantially more.
+
+While defining the instruction set, we defined the memory-expansion for range function, $M$, thus:
+
+\begin{equation}
+M(s, f, l) \equiv \begin{cases}
+s & \text{if} \quad l = 0 \\
+\max(s, \ceil{ (f + l) \div 32 }) & \text{otherwise}
+\end{cases}
+\end{equation}
+
+Another useful function is ``all but one 64th'' function~$L$ defined as:
+
+\begin{equation}
+L(n) \equiv n - \lfloor n / 64 \rfloor
+\end{equation}
+
+\subsection{Instruction Set}
+\label{app:instruction-set}
+
+As previously specified in Section \ref{sec:exe model}, these definitions take place in the final context there. In particular we assume $O$ is the EVM state-progression function and define the terms pertaining to the next cycle's state $(\st', \mst')$ such that:
+\begin{equation}
+O(\st, \mst, A, I) \equiv (\st', \mst', A', I) \quad \text{with exceptions, as noted}
+\end{equation}
+
+Here given are the various exceptions to the state transition rules given in Section \ref{sec:exe model} specified for each instruction, together with the additional instruction-specific definitions of $J$ and $\cost$. 
+For each instruction, also specified is $\pushstack$, the additional items placed on the data stack, and $\popstack$, the items removed from data stack, as defined in Section \ref{sec:exe model}.
+For subrountine instracutions, further specified is $\pushrstack$, the additional items pushed into the return stack, 
+and $\poprstack$, the items removed from return stack, 
+as defined in Section \ref{sec:exe model}.
+
+\begin{tabu}{r l r r l} \savetabu{opcodes}
+\toprule
+\multicolumn{5}{c}{\textbf{0s: Stop and Arithmetic Operations}} \\
+\multicolumn{5}{l}{All arithmetic is modulo $2^{256}$ unless otherwise noted. The zero-th power of zero $0^0$ is defined to be one.} \vspace{5pt} \\
+\textbf{Value} & \textbf{Mnemonic} & $\popstack$ & $\pushstack$ & \textbf{Description} \vspace{5pt} \\
+\linkdest{stop}{} 0x00 & $\op{STOP}$ & 0 & 0 & Halts execution. \\
+\midrule
+0x01 & $\op{ADD}$ & 2 & 1 & Addition operation. \\
+&&&& $\mst'_{\mathbf{s}}[0] \equiv \mst_{\mathbf{s}}[0] + \mst_{\mathbf{s}}[1]$ \\
+\midrule
+0x02 & $\op{MUL}$ & 2 & 1 & Multiplication operation. \\
+&&&& $\mst'_{\mathbf{s}}[0] \equiv \mst_{\mathbf{s}}[0] \times \mst_{\mathbf{s}}[1]$ \\
+\midrule
+0x03 & $\op{SUB}$ & 2 & 1 & Subtraction operation. \\
+&&&& $\mst'_{\mathbf{s}}[0] \equiv \mst_{\mathbf{s}}[0] - \mst_{\mathbf{s}}[1]$ \\
+\midrule
+0x04 & $\op{DIV}$ & 2 & 1 & Integer division operation. \\
+&&&& $\mst'_{\mathbf{s}}[0] \equiv \begin{cases}0 & \text{if} \quad \mst_{\mathbf{s}}[1] = 0\\ \lfloor\mst_{\mathbf{s}}[0] \div \mst_{\mathbf{s}}[1]\rfloor & \text{otherwise}\end{cases}$  \\
+\midrule
+0x05 & $\op{SDIV}$ & 2 & 1 & Signed integer division operation (truncated). \\
+&&&& $\mst'_{\mathbf{s}}[0] \equiv \begin{cases}0 & \text{if} \> \mst_{\mathbf{s}}[1] = 0\\ -2^{255} & \text{if} \> \mst_{\mathbf{s}}[0] = -2^{255} \wedge \, \mst_{\mathbf{s}}[1] = -1\\ \mathbf{sgn} (\mst_{\mathbf{s}}[0] \div \mst_{\mathbf{s}}[1]) \lfloor |\mst_{\mathbf{s}}[0] \div \mst_{\mathbf{s}}[1]| \rfloor & \text{otherwise}\end{cases}$  \\
+&&&& Where all values are treated as two's complement signed 256-bit integers. \\
+&&&& Note the overflow semantic when $-2^{255}$ is negated.\\
+\midrule
+0x06 & $\op{MOD}$ & 2 & 1 & Modulo remainder operation. \\
+&&&& $\mst'_{\mathbf{s}}[0] \equiv \begin{cases}0 & \text{if} \quad \mst_{\mathbf{s}}[1] = 0\\ \mst_{\mathbf{s}}[0] \bmod \mst_{\mathbf{s}}[1] & \text{otherwise}\end{cases}$  \\
+\midrule
+0x07 & $\op{SMOD}$ & 2 & 1 & Signed modulo remainder operation. \\
+&&&& $\mst'_{\mathbf{s}}[0] \equiv \begin{cases}0 & \text{if} \quad \mst_{\mathbf{s}}[1] = 0\\ \mathbf{sgn} (\mst_{\mathbf{s}}[0]) (|\mst_{\mathbf{s}}[0]| \bmod |\mst_{\mathbf{s}}[1]|) & \text{otherwise}\end{cases}$  \\
+&&&& Where all values are treated as two's complement signed 256-bit integers. \\
+\midrule
+0x08 & $\op{ADDMOD}$ & 3 & 1 & Modulo addition operation. \\
+&&&& $\mst'_{\mathbf{s}}[0] \equiv \begin{cases}0 & \text{if} \quad \mst_{\mathbf{s}}[2] = 0\\ (\mst_{\mathbf{s}}[0] + \mst_{\mathbf{s}}[1]) \mod \mst_{\mathbf{s}}[2] & \text{otherwise}\end{cases}$  \\
+&&&& All intermediate calculations of this operation are not subject to the $2^{256}$ \\
+&&&& modulo. \\
+\midrule
+0x09 & $\op{MULMOD}$ & 3 & 1 & Modulo multiplication operation. \\
+&&&& $\mst'_{\mathbf{s}}[0] \equiv \begin{cases}0 & \text{if} \quad \mst_{\mathbf{s}}[2] = 0\\ (\mst_{\mathbf{s}}[0] \times \mst_{\mathbf{s}}[1]) \mod \mst_{\mathbf{s}}[2] & \text{otherwise}\end{cases}$  \\
+&&&& All intermediate calculations of this operation are not subject to the $2^{256}$ \\
+&&&& modulo. \\
+\midrule
+0x0a & $\op{EXP}$ & 2 & 1 & Exponential operation. \\
+&&&& $\mst'_{\mathbf{s}}[0] \equiv \mst_{\mathbf{s}}[0] ^ {\mst_{\mathbf{s}}[1] }$ \\
+\midrule
+0x0b & $\op{SIGNEXTEND}$ & 2 & 1 & Extend length of two's complement signed integer. \\
+&&&& $ \forall i \in [0..255]: \mst'_{\mathbf{s}}[0]_{\mathrm{i}} \equiv \begin{cases} \mst_{\mathbf{s}}[1]_{\mathrm{t}} &\text{if} \quad i \leqslant t \quad \text{where} \; t = 256 - 8(\mst_{\mathbf{s}}[0] + 1) \\ \mst_{\mathbf{s}}[1]_{\mathrm{i}} &\text{otherwise} \end{cases}$ \\
+\multicolumn{5}{l}{$\mst_{\mathbf{s}}[x]_{\mathrm{i}}$ gives the $i$th bit (counting from zero) of $\mst_{\mathbf{s}}[x]$} \vspace{5pt} \\
+\midrule
+\end{tabu}
+
+\begin{tabu}{\usetabu{opcodes}}
+\toprule
+\multicolumn{5}{c}{\textbf{10s: Comparison \& Bitwise Logic Operations}} \\
+\textbf{Value} & \textbf{Mnemonic} & $\popstack$ & $\pushstack$ & \textbf{Description} \vspace{5pt} \\
+0x10 & $\op{LT}$ & 2 & 1 & Less-than comparison. \\
+&&&& $\mst'_{\mathbf{s}}[0] \equiv \begin{cases} 1 & \text{if} \quad \mst_{\mathbf{s}}[0] < \mst_{\mathbf{s}}[1] \\ 0 & \text{otherwise} \end{cases}$ \\
+\midrule
+0x11 & $\op{GT}$ & 2 & 1 & Greater-than comparison. \\
+&&&& $\mst'_{\mathbf{s}}[0] \equiv \begin{cases} 1 & \text{if} \quad \mst_{\mathbf{s}}[0] > \mst_{\mathbf{s}}[1] \\ 0 & \text{otherwise} \end{cases}$ \\
+\midrule
+0x12 & $\op{SLT}$ & 2 & 1 & Signed less-than comparison. \\
+&&&& $\mst'_{\mathbf{s}}[0] \equiv \begin{cases} 1 & \text{if} \quad \mst_{\mathbf{s}}[0] < \mst_{\mathbf{s}}[1] \\ 0 & \text{otherwise} \end{cases}$ \\
+&&&& Where all values are treated as two's complement signed 256-bit integers. \\
+\midrule
+0x13 & $\op{SGT}$ & 2 & 1 & Signed greater-than comparison. \\
+&&&& $\mst'_{\mathbf{s}}[0] \equiv \begin{cases} 1 & \text{if} \quad \mst_{\mathbf{s}}[0] > \mst_{\mathbf{s}}[1] \\ 0 & \text{otherwise} \end{cases}$ \\
+&&&& Where all values are treated as two's complement signed 256-bit integers. \\
+\midrule
+0x14 & $\op{EQ}$ & 2 & 1 & Equality comparison. \\
+&&&& $\mst'_{\mathbf{s}}[0] \equiv \begin{cases} 1 & \text{if} \quad \mst_{\mathbf{s}}[0] = \mst_{\mathbf{s}}[1] \\ 0 & \text{otherwise} \end{cases}$ \\
+\midrule
+0x15 & $\op{ISZERO}$ & 1 & 1 & Simple not operator. \\
+&&&& $\mst'_{\mathbf{s}}[0] \equiv \begin{cases} 1 & \text{if} \quad \mst_{\mathbf{s}}[0] = 0 \\ 0 & \text{otherwise} \end{cases}$ \\
+\midrule
+0x16 & $\op{AND}$ & 2 & 1 & Bitwise AND operation. \\
+&&&& $\forall i \in [0..255]: \mst'_{\mathbf{s}}[0]_{\mathrm{i}} \equiv \mst_{\mathbf{s}}[0]_{\mathrm{i}} \wedge \mst_{\mathbf{s}}[1]_{\mathrm{i}}$ \\
+\midrule
+0x17 & $\op{OR}$ & 2 & 1 & Bitwise OR operation. \\
+&&&& $\forall i \in [0..255]: \mst'_{\mathbf{s}}[0]_{\mathrm{i}} \equiv \mst_{\mathbf{s}}[0]_{\mathrm{i}} \vee \mst_{\mathbf{s}}[1]_{\mathrm{i}}$ \\
+\midrule
+0x18 & $\op{XOR}$ & 2 & 1 & Bitwise XOR operation. \\
+&&&& $\forall i \in [0..255]: \mst'_{\mathbf{s}}[0]_{\mathrm{i}} \equiv \mst_{\mathbf{s}}[0]_{\mathrm{i}} \oplus \mst_{\mathbf{s}}[1]_{\mathrm{i}}$ \\
+\midrule
+0x19 & $\op{NOT}$ & 1 & 1 & Bitwise NOT operation. \\
+&&&& $\forall i \in [0..255]: \mst'_{\mathbf{s}}[0]_{\mathrm{i}} \equiv \begin{cases} 1 & \text{if} \quad \mst_{\mathbf{s}}[0]_{\mathrm{i}} = 0 \\ 0 & \text{otherwise} \end{cases}$ \\
+\midrule
+0x1a & $\op{BYTE}$ & 2 & 1 & Retrieve single byte from word. \\
+&&&& $\forall i \in [0..255]: \mst'_{\mathbf{s}}[0]_{\mathrm{i}} \equiv \begin{cases} \mst_{\mathbf{s}}[1]_{(i + 8\mst_{\mathbf{s}}[0])} & \text{if} \quad i < 8 \wedge \mst_{\mathbf{s}}[0] < 32 \\ 0 & \text{otherwise} \end{cases} $\\
+&&&& For the Nth byte, we count from the left (i.e. N=0 would be the most significant\\
+&&&& in big endian). \\
+\midrule
+0x1b & $\op{SHL}$ & 2 & 1 & Left shift operation. \\
+&&&& $\mst'_{\mathbf{s}}[0] \equiv (\mst_{\mathbf{s}}[1] \times 2^{\mst_{\mathbf{s}}[0]}) \mod 2^{256}$ \\
+\midrule
+0x1c & $\op{SHR}$ & 2 & 1 & Logical right shift operation. \\
+&&&& $\mst'_{\mathbf{s}}[0] \equiv \lfloor \mst_{\mathbf{s}}[1] \div 2^{\mst_{\mathbf{s}}[0]} \rfloor$ \\
+\midrule
+0x1d & $\op{SAR}$ & 2 & 1 & Arithmetic (signed) right shift operation. \\
+&&&& $\mst'_{\mathbf{s}}[0] \equiv \lfloor \mst_{\mathbf{s}}[1] \div 2^{\mst_{\mathbf{s}}[0]} \rfloor$ \\
+&&&& Where $\mst'_{\mathbf{s}}[0]$ and $\mst_{\mathbf{s}}[1]$ are treated as two's complement signed 256-bit integers, \\
+&&&& while $\mst_{\mathbf{s}}[0]$ is treated as unsigned. \\
+\bottomrule
+\end{tabu}
+
+\begin{tabu}{\usetabu{opcodes}}
+\toprule
+\multicolumn{5}{c}{\textbf{20s: SHA3}} \vspace{5pt} \\
+\textbf{Value} & \textbf{Mnemonic} & $\popstack$ & $\pushstack$ & \textbf{Description} \vspace{5pt} \\
+0x20 & $\op{SHA3}$ & 2 & 1 & Compute Keccak-256 hash. \\
+&&&& $\mst'_{\mathbf{s}}[0] \equiv \mathtt{KEC}(\mst_{\mathbf{m}}[ \mst_{\mathbf{s}}[0] \dots (\mst_{\mathbf{s}}[0] + \mst_{\mathbf{s}}[1] - 1) ])$ \\
+&&&& $\mst'_{\mathrm{i}} \equiv M(\mst_{\mathrm{i}}, \mst_{\mathbf{s}}[0], \mst_{\mathbf{s}}[1])$ \\
+\bottomrule
+\end{tabu}
+
+\begin{tabu}{\usetabu{opcodes}}
+\toprule
+\multicolumn{5}{c}{\textbf{30s: Environmental Information}} \vspace{5pt} \\
+\textbf{Value} & \textbf{Mnemonic} & $\popstack$ & $\pushstack$ & \textbf{Description} \vspace{5pt} \\
+0x30 & $\op{ADDRESS}$ & 0 & 1 & Get address of currently executing account. \\
+&&&& $\mst'_{\mathbf{s}}[0] \equiv I_{\mathrm{a}}$ \\
+\midrule
+0x31 & $\op{BALANCE}$ & 1 & 1 & Get balance of the given account. \\
+&&&& $\mst'_{\mathbf{s}}[0] \equiv \begin{cases}\st[\mst_{\mathbf{s}}[0]]_{\mathrm{b}}& \text{if} \quad \st[\mst_{\mathbf{s}}[0] \mod 2^{160}] \neq \varnothing\\0&\text{otherwise}\end{cases}$ \\
+\midrule
+0x32 & $\op{ORIGIN}$ & 0 & 1 & Get execution origination address. \\
+&&&& $\mst'_{\mathbf{s}}[0] \equiv I_{\mathrm{o}}$ \\
+&&&& This is the sender of original transaction; it is never an account with\\
+&&&& non-empty associated code. \\
+\midrule
+0x33 & $\op{CALLER}$ & 0 & 1 & Get caller address. \\
+&&&& $\mst'_{\mathbf{s}}[0] \equiv I_{\mathrm{s}}$ \\
+&&&& This is the address of the account that is directly responsible for\\
+&&&& this execution. \\
+\midrule
+0x34 & $\op{CALLVALUE}$ & 0 & 1 & Get deposited value by the instruction/transaction responsible for\\
+&&&& this execution. \\
+&&&& $\mst'_{\mathbf{s}}[0] \equiv I_{\mathrm{v}}$ \\
+\midrule
+0x35 & $\op{CALLDATALOAD}$ & 1 & 1 & Get input data of current environment. \\
+&&&& $\mst'_{\mathbf{s}}[0] \equiv I_{\mathbf{d}}[ \mst_{\mathbf{s}}[0] \dots (\mst_{\mathbf{s}}[0] + 31) ] \quad \text{with} \quad I_{\mathbf{d}}[x] = 0 \quad \text{if} \quad x \geqslant \lVert I_{\mathbf{d}} \rVert$ \\
+&&&& This pertains to the input data passed with the message call\\
+&&&& instruction or transaction. \\
+\midrule
+0x36 & $\op{CALLDATASIZE}$ & 0 & 1 & Get size of input data in current\\
+&&&& environment. \\
+&&&& $\mst'_{\mathbf{s}}[0] \equiv \lVert I_{\mathbf{d}} \rVert$ \\
+&&&& This pertains to the input data passed with the message call\\
+&&&& instruction or transaction. \\
+\midrule
+0x37 & $\op{CALLDATACOPY}$ & 3 & 0 & Copy input data in current environment to memory. \\
+&&&& $\forall i \in \{ 0 \dots \mst_{\mathbf{s}}[2] - 1\}: \mst'_{\mathbf{m}}[\mst_{\mathbf{s}}[0] + i ] \equiv
+\begin{cases} I_{\mathbf{d}}[\mst_{\mathbf{s}}[1] + i] & \text{if} \quad \mst_{\mathbf{s}}[1] + i < \lVert I_{\mathbf{d}} \rVert \\ 0 & \text{otherwise} \end{cases}$\\
+&&&& The additions in $\mst_{\mathbf{s}}[1] + i$ are not subject to the $2^{256}$ modulo. \\
+&&&& $\mst'_{\mathrm{i}} \equiv M(\mst_{\mathrm{i}}, \mst_{\mathbf{s}}[0], \mst_{\mathbf{s}}[2])$ \\
+&&&& This pertains to the input data passed with the message call instruction\\
+&&&& or transaction. \\
+\midrule
+0x38 & $\op{CODESIZE}$ & 0 & 1 & Get size of code running in current environment. \\
+&&&& $\mst'_{\mathbf{s}}[0] \equiv \lVert I_{\mathbf{b}} \rVert$ \\
+\midrule
+0x39 & $\op{CODECOPY}$ & 3 & 0 & Copy code running in current environment to memory. \\
+&&&& $\forall i \in \{ 0 \dots \mst_{\mathbf{s}}[2] - 1\}: \mst'_{\mathbf{m}}[\mst_{\mathbf{s}}[0] + i ] \equiv
+\begin{cases} I_{\mathbf{b}}[\mst_{\mathbf{s}}[1] + i] & \text{if} \quad \mst_{\mathbf{s}}[1] + i < \lVert I_{\mathbf{b}} \rVert \\ \op{STOP} & \text{otherwise} \end{cases}$\\
+&&&& $\mst'_{\mathrm{i}} \equiv M(\mst_{\mathrm{i}}, \mst_{\mathbf{s}}[0], \mst_{\mathbf{s}}[2])$ \\
+&&&& The additions in $\mst_{\mathbf{s}}[1] + i$ are not subject to the $2^{256}$ modulo. \\
+\midrule
+0x3a & $\op{GASPRICE}$ & 0 & 1 & Get price of gas in current environment. \\
+&&&& $\mst'_{\mathbf{s}}[0] \equiv I_{\mathrm{p}}$ \\
+&&&& This is gas price specified by the originating transaction.\\
+\midrule
+0x3b & $\op{EXTCODESIZE}$ & 1 & 1 & Get size of an account's code. \\
+&&&& $\mst'_{\mathbf{s}}[0] \equiv \lVert \mathbf{b} \rVert$ \\
+&&&& where $\mathtt{KEC}(\mathbf{b}) \equiv \st[\mst_{\mathbf{s}}[0] \mod 2^{160}]_{\mathrm{c}}$ \\
+\end{tabu}
+
+\begin{tabu}{\usetabu{opcodes}}
+\midrule
+0x3c & $\op{EXTCODECOPY}$ & 4 & 0 & Copy an account's code to memory. \\
+&&&& $\forall i \in \{ 0 \dots \mst_{\mathbf{s}}[3] - 1\}: \mst'_{\mathbf{m}}[\mst_{\mathbf{s}}[1] + i ] \equiv
+\begin{cases} \mathbf{b}[\mst_{\mathbf{s}}[2] + i] & \text{if} \quad \mst_{\mathbf{s}}[2] + i < \lVert \mathbf{b} \rVert \\ \op{STOP} & \text{otherwise} \end{cases}$\\
+&&&& where $\mathtt{KEC}(\mathbf{b}) \equiv \st[\mst_{\mathbf{s}}[0] \mod 2^{160}]_{\mathrm{c}}$ \\
+&&&& $\mst'_{\mathrm{i}} \equiv M(\mst_{\mathrm{i}}, \mst_{\mathbf{s}}[1], \mst_{\mathbf{s}}[3])$ \\
+&&&& The additions in $\mst_{\mathbf{s}}[2] + i$ are not subject to the $2^{256}$ modulo. \\
+\midrule
+0x3d & $\op{RETURNDATASIZE}$ & 0 & 1 & Get size of output data from the previous call from the current\\
+&&&& environment. \\
+&&&& $\mst'_{\mathbf{s}}[0] \equiv \lVert \mst_{\mathbf{o}} \rVert$ \\
+\midrule
+0x3e & $\op{RETURNDATACOPY}$ & 3 & 0 & Copy output data from the previous call to memory. \\
+&&&& $\forall i \in \{ 0 \dots \mst_{\mathbf{s}}[2] - 1\}: \mst'_{\mathbf{m}}[\mst_{\mathbf{s}}[0] + i ] \equiv
+\begin{cases} \mst_{\mathbf{o}}[\mst_{\mathbf{s}}[1] + i] & \text{if} \quad \mst_{\mathbf{s}}[1] + i < \lVert \mst_{\mathbf{o}} \rVert \\ 0 & \text{otherwise} \end{cases}$\\
+&&&& The additions in $\mst_{\mathbf{s}}[1] + i$ are not subject to the $2^{256}$ modulo. \\
+&&&& $\mst'_{\mathrm{i}} \equiv M(\mst_{\mathrm{i}}, \mst_{\mathbf{s}}[0], \mst_{\mathbf{s}}[2])$ \\
+\midrule
+\linkdest{extcodehash}{}0x3f & $\op{EXTCODEHASH}$ & 1 & 1 & Get hash of an account's code. \\
+&&&& $\mst'_{\mathbf{s}}[0] \equiv
+\begin{cases} 0 & \text{if} \quad \mathtt{DEAD}(\st, \mst_{\mathbf{s}}[0] \mod 2^{160}) \\ \st[\mst_{\mathbf{s}}[0] \mod 2^{160}]_{\mathrm{c}} & \text{otherwise} \end{cases}$ \\
+\bottomrule
+\end{tabu}
+
+\begin{tabu}{\usetabu{opcodes}}
+\toprule
+\multicolumn{5}{c}{\textbf{40s: Block Information}} \vspace{5pt} \\
+\textbf{Value} & \textbf{Mnemonic} & $\popstack$ & $\pushstack$ & \textbf{Description} \vspace{5pt} \\
+\linkdest{BLOCKHASH}{}0x40 & $\op{BLOCKHASH}$ & 1 & 1 & Get the hash of the last block in block order. \\
+&&&&
+In {\name}, we only maintain the block hash of the previous block.\\
+&&&&
+When querying other block numbers, the returned result is always $0$.\\
+\linkdest{blockhash}{}&&&& $\mst'_{\mathbf{s}}[0] \equiv 
+\begin{cases}
+	\kec(I_{{\head}_{\mathbf{L}}}[-1]) & \text{if} \quad \mst_{\mathbf{s}}[0] = |I_{{\head}_{\mathbf{L}}}|-1 \\
+	0 & \text{otherwise}
+\end{cases}$ \\
+\midrule
+0x41 & $\op{COINBASE}$ & 0 & 1 & Get the block's beneficiary address. \\
+&&&& $\mst'_{\mathbf{s}}[0] \equiv I_{{\head}_{\mathrm{c}}}$ \\
+\midrule
+0x42 & $\op{TIMESTAMP}$ & 0 & 1 & Get the block's timestamp. \\
+&&&& $\mst'_{\mathbf{s}}[0] \equiv I_{{\head}_{\mathrm{s}}}$ \\
+\midrule
+0x43 & $\op{NUMBER}$ & 0 & 1 & Get the block's index in total order. (The index of genesis block is 0.) \\
+&&&& $\mst'_{\mathbf{s}}[0] \equiv |I_{{\head}_{\mathbf{L}}}|$ \\
+\midrule
+0x44 & $\op{DIFFICULTY}$ & 0 & 1 & Get the block's difficulty. \\
+&&&& $\mst'_{\mathbf{s}}[0] \equiv I_{{\head}_{\mathrm{d}}}$ \\
+\midrule
+0x45 & $\op{GASLIMIT}$ & 0 & 1 & Get the block's gas limit. \\
+&&&& $\mst'_{\mathbf{s}}[0] \equiv I_{{\head}_{\ell}}$ \\
+\midrule
+\linkdest{CHAINID}{} 0x46 & $\op{CHAINID}$ & 0 & 1 & Get the chain ID. \\
+&&&& $\mst'_{\mathbf{s}}[0] \equiv \chainid$ \\
+\midrule
+\linkdest{SELFBALANCE}{} 0x47 & $\op{SELFBALANCE}$ & 0 & 1 & Get balance of the currently executing account. \\
+&&&& $\mst'_{\mathbf{s}}[0] \equiv  \begin{cases}\st[I_{\mathrm{a}}]_{\mathrm{b}}& \text{if} \quad \st[I_{\mathrm{a}} \mod 2^{160}] \neq \varnothing\\0&\text{otherwise}\end{cases}$ \\
+\bottomrule
+\end{tabu}
+
+\begin{tabu}{\usetabu{opcodes}}
+\toprule
+\multicolumn{5}{c}{\textbf{50s: Stack, Memory, Storage and Flow Operations}} \vspace{5pt} \\
+\textbf{Value} & \textbf{Mnemonic} & $\popstack$ & $\pushstack$ & \textbf{Description} \vspace{5pt} \\
+0x50 & $\op{POP}$ & 1 & 0 & Remove item from stack. \\
+\midrule
+0x51 & $\op{MLOAD}$ & 1 & 1 & Load word from memory. \\
+&&&& $\mst'_{\mathbf{s}}[0] \equiv \mst_{\mathbf{m}}[\mst_{\mathbf{s}}[0] \dots (\mst_{\mathbf{s}}[0] + 31) ]$ \\
+&&&& $\mst'_{\mathrm{i}} \equiv \max(\mst_{\mathrm{i}}, \ceil{ (\mst_{\mathbf{s}}[0] + 32) \div 32 })$ \\
+&&&& The addition in the calculation of $\mst'_{\mathrm{i}}$ is not subject to the $2^{256}$ modulo. \\
+\midrule
+0x52 & $\op{MSTORE}$ & 2 & 0 & Save word to memory. \\
+&&&& $\mst'_{\mathbf{m}}[ \mst_{\mathbf{s}}[0] \dots (\mst_{\mathbf{s}}[0] + 31) ] \equiv \mst_{\mathbf{s}}[1]$ \\
+&&&& $\mst'_{\mathrm{i}} \equiv \max(\mst_{\mathrm{i}}, \ceil{ (\mst_{\mathbf{s}}[0] + 32) \div 32 })$ \\
+&&&& The addition in the calculation of $\mst'_{\mathrm{i}}$ is not subject to the $2^{256}$ modulo. \\
+\midrule
+0x53 & $\op{MSTORE8}$ & 2 & 0 & Save byte to memory. \\
+&&&& $\mst'_{\mathbf{m}}[ \mst_{\mathbf{s}}[0] ] \equiv (\mst_{\mathbf{s}}[1] \bmod 256) $ \\
+&&&& $\mst'_{\mathrm{i}} \equiv \max(\mst_{\mathrm{i}}, \ceil{ (\mst_{\mathbf{s}}[0] + 1) \div 32 })$ \\
+&&&& The addition in the calculation of $\mst'_{\mathrm{i}}$ is not subject to the $2^{256}$ modulo. \\
+\midrule
+0x54 & $\op{SLOAD}$ & 1 & 1 & Load word from storage. \\
+&&&& $\mst'_{\mathbf{s}}[0] \equiv \st[I_{\mathrm{a}}]_{\mathbf{s}}[\mst_{\mathbf{s}}[0]]_v$ \\
+\midrule
+\linkdest{SSTORE}{}0x55 & $\op{SSTORE}$ & 2 & 0 & Save word and its owner to storage \\
+% &&&& $\st'[I_{\mathrm{a}}]_{\mathbf{s}}[ \mst_{\mathbf{s}}[0] ] \equiv (\mst_{\mathbf{s}}[1],I_i) $ \\
+&&&&$\st'\eqdef \Phi(\st,I_a,\mst_{\sf s}[0],\mst_{\sf s}[1],I_i)$\\
+&&&&where $\Phi$ is defined in section~\ref{sec:storage_maintain}\\
+\midrule
+\linkdest{JUMP}{}0x56 & $\op{JUMP}$ & 1 & 0 & Alter the program counter. \\
+&&&& $J_{\op{JUMP}}(\mst) \equiv \mst_{\mathbf{s}}[0] $ \\
+&&&& This has the effect of writing said value to $\mst_{\mathrm{pc}}$. See (\ref{eq:mu_pc}) in Section \ref{sec:exe model}.\\
+\midrule
+\linkdest{JUMPI}{}0x57 & $\op{JUMPI}$ & 2 & 0 & Conditionally alter the program counter. \\
+&&&& $J_{\op{JUMPI}}(\mst) \equiv \begin{cases} \mst_{\mathbf{s}}[0] & \text{if} \quad \mst_{\mathbf{s}}[1] \neq 0 \\ \mst_{\mathrm{pc}} + 1 & \text{otherwise} \end{cases} $ \\
+&&&& This has the effect of writing said value to $\mst_{\mathrm{pc}}$. See (\ref{eq:mu_pc}) in Section \ref{sec:exe model}. \\
+\midrule
+0x58 & $\op{PC}$ & 0 & 1 & Get the value of the program counter \textit{prior} to the increment \\
+&&&&  corresponding to this instruction. \\
+&&&& $\mst'_{\mathbf{s}}[0] \equiv \mst_{\mathrm{pc}}$ \\
+\midrule
+0x59 & $\op{MSIZE}$ & 0 & 1 & Get the size of active memory in bytes. \\
+&&&& $\mst'_{\mathbf{s}}[0] \equiv 32\mst_{i}$ \\
+\midrule
+0x5a & $\op{GAS}$ & 0 & 1 & Get the amount of available gas, including the corresponding reduction \\
+&&&& for the cost of this instruction. \\
+&&&& $\mst'_{\mathbf{s}}[0] \equiv \mst_{g}$ \\
+\midrule
+0x5b & $\op{JUMPDEST}$ & 0 & 0 & Mark a valid destination for jumps. \\
+&&&& This operation has no effect on machine state during execution. \\
+\midrule
+\end{tabu}
+
+\begin{tabu}{r l c c c c l}%{\usetabu{opcodes}}
+\midrule
+\multicolumn{7}{c}{\textbf{50s: Stack, Memory, Storage and Flow Operations -- Subroutine Operations}} \vspace{5pt} \\
+{\bf Note 1:} & \multicolumn{6}{l}{Here we list columns of $\poprstack$ and $\pushrstack$ because $\op{JUMPSUB}$ and $\op{RETURNSUB}$ may change the return stack $\mst_{\vec{r}}$. }\\
+& \multicolumn{6}{l}{However, $\mst_{\vec{r}}$ is only alterable by these two instructions, and hence there is no need to validate popped values.
+}\\
+{\bf Note 2:} & \multicolumn{6}{l}{ The actual state of the return stack is neither observable by \cvm code nor consensus-critical to the protocol.}\\
+&\multicolumn{6}{l}{ Thus, a node implementor may code $\op{JUMPSUB}$ to unobservably push $\mathrm{pc}$ on the return stack rather than $\mathrm{pc} + 1$,}\\
+&\multicolumn{6}{l}{which is allowed so long as the next $\op{RETURNSUB}$ would observably return control to the $\mathrm{pc} + 1$ location.
+}
+\medskip\\
+\textbf{Value} & \textbf{Mnemonic} & $\popstack$ & $\pushstack$ & $\poprstack$ & $\pushrstack$ & \textbf{Description} \vspace{5pt} \\
+\linkdest{BEGINSUB}{}0x5c & $\op{BEGINSUB}$ & 0 & 0 & 0 & 0 & Marks the entry point to a subroutine. \\
+&&&&&& Attempted execution of a $\op{BEGINSUB}$ causes an abort: \\
+&&&&&& terminate execution with an OOG (\emph{Out Of Gas}) exception. \\
+\midrule
+\linkdest{RETURNSUB}{}0x5d & $\op{RETURNSUB}$ & 0 & 0 & 1 & 0 & Returns from a subroutine. \\
+&&&&&&   If  $\lVert \mst_\mathbf{r} \rVert = 0$, then abort:\\
+&&&&&&   terminate execution with a \emph{Return Stack Underflow} exception. \\
+&&&&&&   Otherwise $J_{\op{RETURNSUB}}(\mst) \eqdef \mst_{\mathbf{r}}[0] $\\
+&&&&&&   This has the effect of writing said value to $\mst_{\mathrm{pc}}$. See (\ref{eq:mu_pc}) in Section \ref{sec:exe model}.\\
+\midrule
+\linkdest{JUMPSUB}{}0x5e & $\op{JUMPSUB}$ & 1 & 0 & 0 & 1 & Jumps to a defined $\op{BEGINSUB}$ subroutine and transfers control to it. \\
+&&&&&&  If $\lVert \mst_\mathbf{r} \rVert = 1023$, then abort: \\
+&&&&&&  terminate execution with an \emph{Out Of Return Stack} exception.\\
+&&&&&&  Else if $I_{\vec{b}}\left[\mst_{\mathbf{s}}[0]\right] \ne \op{BEGINSUB}$ then abort: \\
+&&&&&&  terminate execution with a \emph{Bad Jump Destination} exception.\\
+&&&&&&  Otherwise:\\
+&&&&&&  $\mst'_{\vec{r}}[0] \eqdef \mst_{\mathrm{pc}}+1$ \\
+% &&&&&&  $\mst'_{\mathrm{pc}} \eqdef \mst_{\mathbf{s}}[0]+1$ \\
+&&&&&&  $J_{\op{JUMPSUB}}(\mst) \eqdef \mst_{\mathbf{s}}[0]+1 $  \\
+&&&&&&   This has the effect of writing said value to $\mst_{\mathrm{pc}}$. See (\ref{eq:mu_pc}) in Section \ref{sec:exe model}.\\
+&&&&&&  In case $\mst_{\mathbf{s}}[0]+1 \ge \lVert I_{\vec{b}} \rVert$, i.e. the resulting $\mathrm{pc}$ is beyond the last instruction,  \\
+&&&&&&  then the opcode is implicitly a $\op{STOP}$, which is not an error.\\
+\bottomrule
+\end{tabu}
+
+\begin{tabu}{\usetabu{opcodes}}
+\toprule
+\multicolumn{5}{c}{\textbf{60s \& 70s: Push Operations}} \vspace{5pt} \\
+\textbf{Value} & \textbf{Mnemonic} & $\popstack$ & $\pushstack$ & \textbf{Description} \vspace{5pt} \\
+0x60 & $\op{PUSH1}$ & 0 & 1 & Place 1 byte item on stack. \\
+&&&& $\mst'_{\mathbf{s}}[0] \equiv c(\mst_{\mathrm{pc}} + 1)$ \\
+&&&& $\text{where} \quad c(x) \equiv \begin{cases} I_{\mathbf{b}}[x] & \text{if} \quad x < \lVert I_{\mathbf{b}} \rVert \\ 0 & \text{otherwise} \end{cases}$ \\
+&&&& The bytes are read in line from the program code's bytes array. \\
+&&&& The function $c$ ensures the bytes default to zero if they extend past the limits.\\
+&&&& The byte is right-aligned (takes the lowest significant place in big endian). \\
+\midrule
+0x61 & $\op{PUSH2}$ & 0 & 1 & Place 2-byte item on stack. \\
+&&&& $\mst'_{\mathbf{s}}[0] \equiv \boldsymbol{c}\big( (\mst_{\mathrm{pc}} + 1) \dots (\mst_{\mathrm{pc}} + 2) \big)$ \\
+&&&& with $\boldsymbol{c}(\boldsymbol{x}) \equiv (c(\boldsymbol{x}_0), ..., c(\boldsymbol{x}_{\lVert x \rVert -1})) $ with $c$ as defined as above. \\
+&&&& The bytes are right-aligned (takes the lowest significant place in big endian). \\
+\midrule
+\multicolumn{1}{c}{\vdots} & \multicolumn{1}{c}{\vdots} & \vdots & \vdots & \multicolumn{1}{c}{\vdots} \\
+\midrule
+0x7f & $\op{PUSH32}$ & 0 & 1 & Place 32-byte (full word) item on stack. \\
+&&&& $\mst'_{\mathbf{s}}[0] \equiv \boldsymbol{c}\big((\mst_{\mathrm{pc}} + 1) \dots (\mst_{\mathrm{pc}} + 32) \big)$ \\
+&&&& where $\boldsymbol{c}$ is defined as above. \\
+&&&& The bytes are right-aligned (takes the lowest significant place in big endian). \\
+\bottomrule
+\end{tabu}
+
+\begin{tabu}{\usetabu{opcodes}}
+\toprule
+\multicolumn{5}{c}{\textbf{80s: Duplication Operations}} \vspace{5pt} \\
+\textbf{Value} & \textbf{Mnemonic} & $\popstack$ & $\pushstack$ & \textbf{Description} \vspace{5pt} \\
+0x80 & $\op{DUP1}$ & 1 & 2 & Duplicate 1st stack item. \\
+&&&& $\mst'_{\mathbf{s}}[0] \equiv \mst_{\mathbf{s}}[0]$ \\
+\midrule
+0x81 & $\op{DUP2}$ & 2 & 3 & Duplicate 2nd stack item. \\
+&&&& $\mst'_{\mathbf{s}}[0] \equiv \mst_{\mathbf{s}}[1]$ \\
+\midrule
+\multicolumn{1}{c}{\vdots} & \multicolumn{1}{c}{\vdots} & \vdots & \vdots & \multicolumn{1}{c}{\vdots} \\
+\midrule
+0x8f & $\op{DUP16}$ & 16 & 17 & Duplicate 16th stack item. \\
+&&&& $\mst'_{\mathbf{s}}[0] \equiv \mst_{\mathbf{s}}[15]$ \\
+\bottomrule
+\end{tabu}
+
+\begin{tabu}{\usetabu{opcodes}}
+\toprule
+\multicolumn{5}{c}{\textbf{90s: Exchange Operations}} \vspace{5pt} \\
+\textbf{Value} & \textbf{Mnemonic} & $\popstack$ & $\pushstack$ & \textbf{Description} \vspace{5pt} \\
+0x90 & $\op{SWAP1}$ & 2 & 2 & Exchange 1st and 2nd stack items. \\
+&&&& $\mst'_{\mathbf{s}}[0] \equiv \mst_{\mathbf{s}}[1]$ \\
+&&&& $\mst'_{\mathbf{s}}[1] \equiv \mst_{\mathbf{s}}[0]$ \\
+\midrule
+0x91 & $\op{SWAP2}$ & 3 & 3 & Exchange 1st and 3rd stack items. \\
+&&&& $\mst'_{\mathbf{s}}[0] \equiv \mst_{\mathbf{s}}[2]$ \\
+&&&& $\mst'_{\mathbf{s}}[2] \equiv \mst_{\mathbf{s}}[0]$ \\
+\midrule
+\multicolumn{1}{c}{\vdots} & \multicolumn{1}{c}{\vdots} & \vdots & \vdots & \multicolumn{1}{c}{\vdots} \\
+\midrule
+0x9f & $\op{SWAP16}$ & 17 & 17 & Exchange 1st and 17th stack items. \\
+&&&& $\mst'_{\mathbf{s}}[0] \equiv \mst_{\mathbf{s}}[16]$ \\
+&&&& $\mst'_{\mathbf{s}}[16] \equiv \mst_{\mathbf{s}}[0]$ \\
+\bottomrule
+\end{tabu}
+
+\begin{tabu}{\usetabu{opcodes}}
+\toprule
+\multicolumn{5}{c}{\textbf{a0s: Logging Operations}} \vspace{5pt} \\
+\multicolumn{5}{l}{For all logging operations, the state change is to append an additional log entry on to the substate's log series:}\\
+\multicolumn{5}{l}{\linkdest{A l}{}$A'_{\mathbf{l}} \equiv A_{\mathbf{l}} \cdot (I_{\mathrm{a}}, \mathbf{t}, \mst_{\mathbf{m}}[ \mst_{\mathbf{s}}[0] \dots (\mst_{\mathbf{s}}[0] + \mst_{\mathbf{s}}[1] - 1) ])$}\\
+\multicolumn{5}{l}{and to update the memory consumption counter:}\\
+\multicolumn{5}{l}{$\mst'_{\mathrm{i}} \equiv M(\mst_{\mathrm{i}}, \mst_{\mathbf{s}}[0], \mst_{\mathbf{s}}[1])$}\\
+\multicolumn{5}{l}{The entry's topic series, $\mathbf{t}$, differs accordingly:}\vspace{5pt} \smallskip\\
+\textbf{Value} & \textbf{Mnemonic} & $\popstack$ & $\pushstack$ & \textbf{Description} \vspace{5pt} \\
+0xa0 & $\op{LOG0}$ & 2 & 0 & Append log record with no topics. \\
+&&&& $\mathbf{t} \equiv \emptystring$ \\
+\midrule
+0xa1 & $\op{LOG1}$ & 3 & 0 & Append log record with one topic. \\
+&&&& $\mathbf{t} \equiv (\mst_{\mathbf{s}}[2])$ \\
+\midrule
+\multicolumn{1}{c}{\vdots} & \multicolumn{1}{c}{\vdots} & \vdots & \vdots & \multicolumn{1}{c}{\vdots} \\
+\midrule
+0xa4 & $\op{LOG4}$ & 6 & 0 & Append log record with four topics. \\
+&&&& $\mathbf{t} \equiv (\mst_{\mathbf{s}}[2], \mst_{\mathbf{s}}[3], \mst_{\mathbf{s}}[4], \mst_{\mathbf{s}}[5])$ \\
+\bottomrule
+\end{tabu}
+
+
+\begin{tabu}{\usetabu{opcodes}}
+\toprule
+\multicolumn{5}{c}{\textbf{f0s: System operations}} \vspace{5pt} \\
+\textbf{Value} & \textbf{Mnemonic} & $\popstack$ & $\pushstack$ & \textbf{Description} \vspace{5pt} \\
+\linkdest{create}{} 0xf0 & $\op{CREATE}$ & 3 & 1 & Create a new account with associated code. \\
+&&&& $\mathbf{i} \equiv \mst_{\mathbf{m}}[ \mst_{\mathbf{s}}[1] \dots (\mst_{\mathbf{s}}[1] + \mst_{\mathbf{s}}[2] - 1) ]$ \\
+&&&& $\zeta \equiv \varnothing$ \\
+&&&& $(\st', \mst'_{\mathrm{g}}, A^+, \mathbf{o}) \equiv \begin{cases}\Lambda(\st^*, I_{\mathrm{a}}, I_{\mathrm{o}}, I_\vec{t}\cdot I_a, I_i, L(\mst_{\mathrm{g}}), I_{\mathrm{p}}, \mst_{\mathbf{s}}[0], \mathbf{i}, I_{\mathrm{e}} + 1, \zeta, I_{\mathrm{w}}) & \text{if} \quad \mst_{\mathbf{s}}[0] \leqslant \st[I_{\mathrm{a}}]_{\mathrm{b}} \; \\ \quad &\wedge\; I_{\mathrm{e}} < 1024\\ \big(\st, \mst_{\mathrm{g}}, \varnothing\big) & \text{otherwise} \end{cases}$ \\
+&&&& $\st^* \equiv \st \quad \text{except} \quad \st^*[I_{\mathrm{a}}]_{\mathrm{n}} = \st[I_{\mathrm{a}}]_{\mathrm{n}} + 1$ \\
+% &&&& $A' \equiv A \Cup A^+$ which abbreviates: $A'_{\mathbf{s}} \equiv A_{\mathbf{s}} \cup A^+_{\mathbf{s}} \quad \wedge \quad A'_{\mathbf{l}} \equiv A_{\mathbf{l}} \cdot A^+_{\mathbf{l}} \quad \wedge$ \\
+% &&&& $A'_{\mathbf{t}} \equiv A_{\mathbf{t}} \cup A^+_{\mathbf{t}} \wedge \quad A'_{\mathbf{r}} \equiv A_{\mathbf{r}} + A^+_{\mathbf{r}}$ \\
+&&&& $\mst'_{\mathbf{s}}[0] \equiv x$ \\
+&&&& where $x=0$ if the code execution for this operation failed due to an\\
+&&&& \hyperlink{Exceptional_Halting_function_Z}{exceptional halting} (or for a \op{REVERT}) $\st' = \varnothing$, or $I_{\mathrm{e}} = 1024$ \\
+&&&& (the maximum call depth limit is reached) or $\mst_{\mathbf{s}}[0] > \st[I_{\mathrm{a}}]_{\mathrm{b}}$ (balance of the caller\\
+&&&& is too low to fulfil the value transfer); and otherwise $x=A(I_{\mathrm{a}}, \st[I_{\mathrm{a}}]_{\mathrm{n}}, \zeta, \mathbf{i} )$, the\\
+&&&& address of the newly created account (\ref{eq:new-address}). \\
+&&&& $\mst'_{\mathrm{i}} \equiv M(\mst_{\mathrm{i}}, \mst_{\mathbf{s}}[1], \mst_{\mathbf{s}}[2])$ \\
+&&&& $\mst'_{\mathbf{o}} \equiv \emptystring$ \\
+&&&& Thus the operand order is: value, input offset, input size. \\
+\midrule
+0xf1 & $\op{CALL}$ & 7 & 1 & Message-call into an account. \\
+&&&& $\mathbf{i} \equiv \mst_{\mathbf{m}}[ \mst_{\mathbf{s}}[3] \dots (\mst_{\mathbf{s}}[3] + \mst_{\mathbf{s}}[4] - 1) ]$ \\
+&&&& $(\st', g', A^+, \mathbf{o}) \equiv \begin{cases}
+	\begin{array}{l}
+		\Theta(\st, I_{\mathrm{a}}, I_{\mathrm{o}}, t, I_\vec{t}\cdot I_a,I_i, t, C_{\text{\tiny CALLGAS}}(\mst),\\ \quad I_{\mathrm{p}}, \mst_{\mathbf{s}}[2], \mst_{\mathbf{s}}[2], \mathbf{i}, I_{\mathrm{e}} + 1, I_{\mathrm{w}})\end{array} & 
+		\text{if} \quad p\\ 
+	(\st, g, \varnothing, \emptystring) & 
+	\text{otherwise} 
+\end{cases}$ \\
+&&&&$ \begin{array}{l}
+	p\eqdef \mst_{\mathbf{s}}[2] \leqslant \st[I_{\mathrm{a}}]_{\mathrm{b}} \;\wedge \; I_{\mathrm{e}} < 1024  
+	\;\wedge \; \mathsf{Type}_{t} \in \set{\typereserved,\typenormal,\typecontract} \\ 
+	\quad \quad \wedge\; (t\notin I_\vec{t}\;\vee\; t= I_a\;\vee\; (C_{\text{\tiny CALLGAS}}(\st, \mst)\le G_{callstipend} \;\wedge\; \mst_{\mathbf{s}}[4]=0))
+\end{array}$\\
+&&&& $n \equiv \min(\{ \mst_{\mathbf{s}}[6], \lVert \mathbf{o} \rVert\})$ \\
+&&&& $\mst'_{\mathbf{m}}[ \mst_{\mathbf{s}}[5] \dots (\mst_{\mathbf{s}}[5] + n - 1) ] = \mathbf{o}[0 \dots (n - 1)]$ \\
+&&&& $\mst'_{\mathbf{o}} = \mathbf{o}$ \\
+&&&& $\mst'_{\mathrm{g}} \equiv \mst_{\mathrm{g}} + g'$ \\
+&&&& $\mst'_{\mathbf{s}}[0] \equiv x$ \\
+&&&& $A' \equiv A \Cup A^+$ \\
+&&&& $t \equiv \mst_{\mathbf{s}}[1] \mod 2^{160}$ \\
+&&&& where $x=0$ if the code execution for this operation failed due to an\\
+&&&& \hyperlink{Exceptional_Halting_function_Z}{exceptional halting} (or for a \op{REVERT}) $\st' = \varnothing$ or if $p=\false$ \\
+&&&& which means \cvm prevents this call; $x=1$  otherwise. \\
+&&&& $\mst'_{\mathrm{i}} \equiv M(M(\mst_{\mathrm{i}}, \mst_{\mathbf{s}}[3], \mst_{\mathbf{s}}[4]), \mst_{\mathbf{s}}[5], \mst_{\mathbf{s}}[6])$ \\
+&&&& Thus the operand order is: gas, to, value, in offset, in size, out offset, out size. \\
+&&&&\linkdest{tiny CALL}{} $C_{\text{\tiny CALL}}(\st, \mst) \equiv C_{\text{\tiny GASCAP}}(\st, \mst) + C_{\text{\tiny EXTRA}}(\st, \mst)$ \\
+&&&& $C_{\text{\tiny CALLGAS}}(\st, \mst) \equiv  \begin{cases}
+C_{\text{\tiny GASCAP}}(\st, \mst) + G_{callstipend} & \text{if} \quad \mst_{\mathbf{s}}[2] \neq 0 \\
+C_{\text{\tiny GASCAP}}(\st, \mst) & \text{otherwise}
+\end{cases}$ \\
+&&&& $C_{\text{\tiny GASCAP}}(\st, \mst) \equiv \begin{cases}
+\min\{ L(\mst_{\mathrm{g}} - C_{\text{\tiny EXTRA}}(\st, \mst)), \mst_{\mathbf{s}}[0] \} & \text{if} \quad \mst_{\mathrm{g}} \ge C_{\text{\tiny EXTRA}}(\st, \mst)\\
+\mst_{\mathbf{s}}[0] & \text{otherwise}
+\end{cases}$\\
+&&&& $C_{\text{\tiny EXTRA}}(\st, \mst) \equiv G_{call} + C_{\text{\tiny XFER}}(\mst) + C_{\text{\tiny NEW}}(\st, \mst)$\\
+&&&& $C_{\text{\tiny XFER}}(\mst) \equiv \begin{cases}
+G_{callvalue} & \text{if} \quad \mst_{\mathbf{s}}[2] \neq 0 \\
+0 & \text{otherwise}
+\end{cases}$ \\
+&&&& $C_{\text{\tiny NEW}}(\st, \mst) \equiv \begin{cases}
+G_{newaccount} & \text{if} \quad \mathtt{DEAD}(\st, \mst_{\mathbf{s}}[1] \mod 2^{160}) \wedge \mst_{\mathbf{s}}[2] \neq 0 \\
+0 & \text{otherwise}
+\end{cases}$ \\
+\end{tabu}
+
+\begin{tabu}{\usetabu{opcodes}}
+\midrule
+0xf2 & $\op{CALLCODE}$ & 7 & 1 & Message-call into this account with an alternative account's code. \\
+&&&& Exactly equivalent to $\op{CALL}$ except: \\
+&&&& $(\st', g', A^+, \mathbf{o}) \equiv 
+\begin{cases}
+	\begin{array}{l}
+		\Theta(\st^*, I_{\mathrm{a}}, I_{\mathrm{o}}, I_{\mathrm{a}}, I_\vec{t}\cdot I_a, I_i, \\
+		\quad t, C_{\text{\tiny CALLGAS}}(\mst),I_{\mathrm{p}}, \mst_{\mathbf{s}}[2], \\ 
+		\quad  \mst_{\mathbf{s}}[2], \mathbf{i}, I_{\mathrm{e}} + 1, I_{\mathrm{w}})
+	\end{array} 
+		& \text{if} \quad p \\ 
+	(\st, g, \varnothing, \emptystring) & \text{otherwise} 
+\end{cases}$ \\
+&&&& where $p\eqdef \mst_{\mathbf{s}}[2] \leqslant \st[I_{\mathrm{a}}]_{\mathrm{b}} \;\wedge\; I_{\mathrm{e}} < 1024 \;\wedge\; \mathsf{Type}_{t} \in \set{\typereserved,\typenormal,\typecontract}.$ \\
+&&&& Note the change in the fourth parameter to the call $\Theta$ from the 2nd stack value \\
+&&&& $\mst_{\mathbf{s}}[1]$ (as in $\op{CALL}$) to the present address $I_{\mathrm{a}}$. This means that the recipient is in\\
+&&&& fact the same account as at present, simply that the code is overwritten.\\
+\midrule
+\linkdest{RETURN}{}0xf3 & $\op{RETURN}$ & 2 & 0 & Halt execution returning output data. \\
+&&&& $H_{\text{\tiny RETURN}}(\mst) \equiv \mst_{\mathbf{m}}[ \mst_{\mathbf{s}}[0] \dots ( \mst_{\mathbf{s}}[0] + \mst_{\mathbf{s}}[1] - 1 ) ]$ \\
+&&&& This has the effect of halting the execution at this point with output defined.\\
+&&&& See section \ref{sec:exe model}. \\
+&&&& $\mst'_{\mathrm{i}} \equiv M(\mst_{\mathrm{i}}, \mst_{\mathbf{s}}[0], \mst_{\mathbf{s}}[1])$ \\
+\midrule
+0xf4 & $\op{DELEGATECALL}$ & 6 & 1 & Message-call into this account with an alternative account's code, but\\
+&&&& persisting the current values for {\it sender} and {\it value}. \\
+&&&& Compared with $\op{CALL}$, $\op{DELEGATECALL}$ takes one fewer arguments. The\\
+&&&& omitted argument is $\mst_{\mathbf{s}}[2]$. As a result, $\mst_{\mathbf{s}}[3]$, $\mst_{\mathbf{s}}[4]$, $\mst_{\mathbf{s}}[5]$ and $\mst_{\mathbf{s}}[6]$ in the\\
+&&&& definition of $\op{CALL}$ should respectively be replaced with $\mst_{\mathbf{s}}[2]$, $\mst_{\mathbf{s}}[3]$, $\mst_{\mathbf{s}}[4]$ and\\
+&&&& $\mst_{\mathbf{s}}[5]$. Otherwise it is equivalent to $\op{CALL}$ except:\\
+&&&& $(\st', g', A^+, \mathbf{o}) \equiv 
+\begin{cases}
+	\begin{array}{l}
+		\Theta(\st^*, I_{\mathrm{s}}, I_{\mathrm{o}}, I_{\mathrm{a}}, I_\vec{t}\cdot I_a, I_i ,t, C_{\text{\tiny CALLGAS}}(\mst), \\\quad I_{\mathrm{p}}, 0, I_{\mathrm{v}}, \mathbf{i}, I_{\mathrm{e}} + 1, I_{\mathrm{w}})
+	\end{array} & \text{if} \quad p
+	 \\
+	(\st, g, \varnothing, \emptystring) & \text{otherwise} 
+\end{cases}$ \\
+&&&& where $p\eqdef I_{\mathrm{v}} \leqslant \st[I_{\mathrm{a}}]_{\mathrm{b}} \;\wedge\; I_{\mathrm{e}} < 1024 \;\wedge\; \mathsf{Type}_{t} \in \set{\typereserved,\typenormal,\typecontract}.$ \\
+&&&& Note the changes (in addition to that of the fourth parameter) to the second \\
+&&&& and ninth parameters to the call $\Theta$.\\
+&&&& This means that the recipient is in fact the same account as at present, simply\\
+&&&& that the code is overwritten {\it and} the context is almost entirely identical.\\
+\midrule
+\linkdest{CREATE2}{} 0xf5 & $\op{CREATE2}$ & 4 & 1 & Create a new account with associated code. \\
+&&&& Exactly equivalent to \hyperlink{create}{$\op{CREATE}$} except: \\
+&&&& The salt $\zeta \equiv \mst_{\mathbf{s}}[3]$.\\
+\midrule
+0xfa & $\op{STATICCALL}$ & 6 & 1 & Static message-call into an account. \\
+&&&& Exactly equivalent to $\op{CALL}$ except: \\
+&&&& The argument $\mst_{\mathbf{s}}[2]$ is replaced with $0$. \\
+&&&& The deeper argument $\mst_{\mathbf{s}}[3]$, $\mst_{\mathbf{s}}[4]$, $\mst_{\mathbf{s}}[5]$ and $\mst_{\mathbf{s}}[6]$ are respectively replaced \\
+&&&& with $\mst_{\mathbf{s}}[2]$, $\mst_{\mathbf{s}}[3]$, $\mst_{\mathbf{s}}[4]$ and $\mst_{\mathbf{s}}[5]$. \\
+&&&& The last argument of $\Theta$ is $\bot$. \\
+\midrule
+0xfd & $\op{REVERT}$ & 2 & 0 & Halt execution reverting state changes but returning data and remaining gas. \\
+&&&& The effect of this operation is described in (\ref{eq:X-def}). \\
+&&&& For the gas calculation, we use the memory expansion function, \\
+&&&& $\mst'_{\mathrm{i}} \equiv M(\mst_{\mathrm{i}}, \mst_{\mathbf{s}}[0], \mst_{\mathbf{s}}[1])$ \\
+\midrule
+0xfe & $\op{INVALID}$ & $\varnothing$ & $\varnothing$ & Designated invalid instruction. \\
+\midrule
+0xff & $\op{SUICIDE}$ & 1 & 0 & Halt execution and register account for later deletion. \\
+&&&& $(\st',A')\eqdef \Psi(\st,A)$\\ 
+&&&& where $\Psi$ is defined in section~\ref{sec:contract_destruct}.\\
+&&&&\linkdest{C tiny SUICIDE}{} $C_{\text{\tiny SUICIDE}}(\st, \mst) \equiv G_{suicide} + \begin{cases}
+G_{newaccount} & \text{if} \quad n \\
+0 & \text{otherwise}
+\end{cases}$ \\
+&&&& $n \equiv \mathtt{DEAD}(\st^*, \mst_{\mathbf{s}}[0] \mod 2^{160}) \wedge \st[I_{\mathrm{a}}]_{\mathrm{b}} \neq 0$ \\
+\bottomrule
+\end{tabu}
+
+% \begin{tabu}{\usetabu{opcodes}}
+% 	\toprule
+
+% \end{tabu}
+

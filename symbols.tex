@@ -1,0 +1,297 @@
+% !TEX root = ./tech-specification.tex
+
+%  Notations
+
+\newcommand{\B}{\ensuremath{\mathbb{B}}}
+\newcommand{\Byte}{\ensuremath{\mathbb{BY}}}
+\newcommand{\N}{\ensuremath{\mathbb{N}}}
+\newcommand{\emptystring}{\ensuremath{\mathbb{\varepsilon}}}
+
+
+\newcommand{\st}{\ensuremath{\mathbf{\sigma}}}
+\newcommand{\mst}{\ensuremath{\mathbf{\mu}}}
+\newcommand{\popstack}{\ensuremath{\mathbf{\delta}}}
+\newcommand{\pushstack}{\ensuremath{\mathbf{\rho}}}
+\newcommand{\poprstack}{\ensuremath{\mathbf{\delta}^*}}
+\newcommand{\pushrstack}{\ensuremath{\mathbf{\rho}^*}}
+
+\newcommand{\transition}{\ensuremath{\mathcal{C}}}
+\newcommand{\cost}{\ensuremath{\mathsf{C}}}
+
+\newcommand{\creation}{\ensuremath{\mathrm{\Lambda}}}
+\newcommand{\execute}{\ensuremath{\mathrm{\Xi}}}
+\newcommand{\execution}{\ensuremath{\mathrm{\Theta}}}
+\newcommand{\sstore}{\ensuremath{\mathrm{\Phi}}}
+
+\newcommand{\account}{\ensuremath{\mathbf{\alpha}}}
+\newcommand{\contract}{\ensuremath{\mathbf{C}}}
+
+
+\newcommand{\rec}{\ensuremath{\mathbf{R}}}
+
+\newcommand{\name}{Conflux\xspace}
+\newcommand{\tg}{\text{Tree-Graph}\xspace}
+% \newcommand{\phvname}[1]{{\fontfamily{phv}\selectfont #1}}
+\newcommand{\phvname}[1]{\textsf{#1}}
+\newcommand{\op}[1]{\ensuremath{\mathsf{#1}}}
+
+\newcommand{\tx}{\textsf{T}}
+\newcommand{\txs}{\textsf{Ts}}
+\newcommand{\block}{\textsf{B}}
+\newcommand{\gblock}{\textsf{G}}
+\newcommand{\ablock}{\textsf{A}}
+\newcommand{\genesisblock}{\phvname{Genesis}}
+\newcommand{\ommers}{\textsf{U}}
+\newcommand{\referees}{\textsf{U}}
+\newcommand{\head}{\textsf{H}}
+\newcommand{\epoch}{\ensuremath{\textsc{Epoch}}}
+
+\newcommand{\graph}{\textbf{G}}
+
+
+\newcommand{\reward}{\ensuremath{\textsf{R}}}
+\newcommand{\award}{\ensuremath{\textsf{R}_{block}}}
+\newcommand{\baseaward}{\ensuremath{\textsf{R}_{base}}}
+
+\newcommand{\feeaward}{\ensuremath{\textsf{R}_{fee}}}
+\newcommand{\storageaward}{\ensuremath{\textsf{R}_{storage}}}
+
+\newcommand{\anticone}{\ensuremath{\mathcal{A}}}
+\newcommand{\af}{\ensuremath{\mathsf{AF}}}
+\newcommand{\basef}{\ensuremath{\mathsf{BF}}}
+\newcommand{\wf}{\ensuremath{\mathsf{WF}}}
+
+
+%% System constants
+%	account types
+\newcommand{\typenormal}{\ensuremath{[0001]_2}}
+\newcommand{\typecontract}{\ensuremath{[1000]_2}}
+\newcommand{\typereserved}{\ensuremath{[0000]_2}}
+
+% A new name of {\name} VM
+\newcommand{\cvm}{{\textsf EVM}\xspace}
+
+
+% Unit of {\name} tokens
+\newcommand{\unit}{{\sf Drip}\xspace}
+\newcommand{\gunit}{{\sf GDrip}\xspace}
+\newcommand{\coin}{{\sf Conflux}\xspace}
+\newcommand{\coinsign}{{\sf CFX}\xspace}
+\newcommand{\ucoinsign}{{\sf uCFX}\xspace}
+\newcommand{\cfx}{\coinsign}
+
+
+
+% Mathematical notations
+
+\newcommand{\set}[1]{{\left \{{#1} \right \}}}
+\newcommand{\ceil}[1]{ {\left\lceil{#1} \right\rceil}}
+\newcommand{\floor}[1]{ {\left \lfloor{#1} \right \rfloor}}
+\newcommand{\zo}{\ensuremath{ \{ 0, 1 \} }}
+\newcommand{\eps}{\ensuremath{\varepsilon}}
+\newcommand{\union}{\ensuremath{\cup}}
+\renewcommand{\vec}[1]{\ensuremath{\mathbf{#1}}}
+
+\newcommand{\eqdef}{\ensuremath{\equiv}}
+% \newcommand{\eqdef}{\ensuremath{:=}}
+
+\newcommand{\true}{\mathsf{True}}
+\newcommand{\false}{\mathsf{False}}
+
+% Important functions
+\newcommand{\kec}{\ensuremath{\mathsf{KEC}}}
+\newcommand{\trie}{\ensuremath{\mathsf{TRIE}}}
+\newcommand{\hash}{\ensuremath{\mathsf{Hash}}}
+\newcommand{\rlp}{\ensuremath{\mathsf{RLP}\xspace}}
+\newcommand{\past}{\ensuremath{\mathsf{PAST}}}
+\newcommand{\future}{\ensuremath{\mathsf{FUTURE}}}
+\newcommand{\chain}{\ensuremath{\mathsf{CHAIN}}}
+\newcommand{\sible}{\ensuremath{\mathsf{SIBLING}}}
+\newcommand{\weight}{\ensuremath{\mathsf{Weight}}}
+\newcommand{\tolist}{\ensuremath{\mathsf{ToList}}}
+
+
+\newcommand{\timerchain}{\ensuremath{\mathsf{TimerChain}}}
+\newcommand{\timerdis}{\ensuremath{\mathsf{TimerDis}}}
+
+\newcommand{\blockno}{\ensuremath{\mathsf{BlockNo}}}
+
+
+\newcommand{\risk}{\ensuremath{\mathsf{Risk}}}
+
+
+\newcommand{\parentf}{\ensuremath{\mathsf{P}}}
+\newcommand{\pivotf}{\ensuremath{\mathsf{PIVOT}}}
+\newcommand{\parent}[1]{\ensuremath{\mathsf{P}{\left({#1} \right)}}}
+\newcommand{\pivot}[1]{\ensuremath{\mathsf{PIVOT}{\left({#1} \right)}}}
+
+\newcommand{\sender}[1]{\ensuremath{\mathsf{S}{\left({#1} \right)}}}
+\newcommand{\receiver}[1]{\ensuremath{\mathsf{S}{\left({#1} \right)}}}
+
+\newcommand{\senderf}{\ensuremath{\mathsf{S} }}
+\newcommand{\epf}{\ensuremath{\mathsf{EPOCH} }}
+
+
+\newcommand{\cfs}{\ensuremath{\mathsf{CFS}}}
+\newcommand{\gused}{\ensuremath{\mathsf{Gas_{used}}}}
+\newcommand{\sol}[1]{\texttt{\textbf{#1}}}
+\newcommand{\solkw}[1]{{\color{blue}{\texttt{#1}}}}
+
+
+
+\newcommand{\pow}{\ensuremath{\mathsf{PoW}}}
+\newcommand{\mpethash}{\ensuremath{\mathsf{MpEthash}}}
+
+\newcommand{\quality}{\ensuremath{\mathsf{QUALITY}}}
+\newcommand{\offset}{\ensuremath{\mathsf{OFFSET}}}
+
+\newcommand{\hcancel}[1]{%
+	% -{#1}
+    \tikz[baseline=(tocancel.base)]{
+        \node[inner sep=1pt,outer sep=0pt] (tocancel) {{$#1$}};
+        \draw[black] (tocancel.south west) -- (tocancel.north east);
+    }%
+}%
+\newcommand{\compressedmix}{\ensuremath{\mathbf{m}_{\mathrm{c}}}}
+\newcommand{\mpmix}{\ensuremath{{m}_{\mathrm{p}}}}
+
+\newcommand{\seedhash}{\ensuremath{\vec{s}_{\mathrm{h}}}}
+\newcommand{\dataset}{\ensuremath{\vec{d}}}
+\newcommand{\headernon}{\ensuremath{\head_{\hcancel{n}}}}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%
+% Setting of parameters
+%%%%%%%%%%%%%%%%%%%%%%%%
+
+\newcommand{\chainid}{503}
+% \newcommand{\chainid}{{\color{red} Conflux Chain ID}}
+
+\newcommand{\txepochbound}{{\color{red}100000}}
+
+\newcommand{\startblockgastlimit}{3\times 10^7}
+\newcommand{\collateralperbyte}{\frac{10^{18}}{1024}}
+\newcommand{\collateralperbyteline}{10^{18}/{1024}}
+\newcommand{\startblockgastlimitline}{30000000}
+\newcommand{\maxblocksize}{{$200$} KB}
+\newcommand{\maxblocksizeinbytes}{\ensuremath{204800}}
+\newcommand{\snapshotperiod}{100000}
+\newcommand{\minblockgaslimit}{10^7}
+
+
+%%%%%%%%%%%%%%%%%%%%
+% Internal Contracts
+%%%%%%%%%%%%%%%%%%%%%%%%
+\newcommand{\admincontract}{{\sf 0x0888000000000000000000000000000000000000}}
+\newcommand{\sponsorcontract}{{\sf 0x0888000000000000000000000000000000000001}}
+\newcommand{\stakingcontract}{{\sf 0x0888000000000000000000000000000000000002}}
+
+%%%%%%%%%%%%%%%%%%%%
+% Mining Schedule
+%%%%%%%%%%%%%%%%%%%%%%%%
+\newcommand{\blocktime}{0.5}
+\FPeval{\blocktimeunix}{clip(\blocktime*1000000)}
+\FPeval{\blockinyear}{clip(31536000/\blocktime)}
+
+
+
+\newcommand{\decayperiodinday}{91.25}
+\FPeval{\decayperiodinblock}{clip(\decayperiodinday*86400/\blocktime)}
+% \newcommand{\decayperiod}{15768000} % a quarter = 60*60*24*365/4 seconds, times 2 blocks/s
+
+\newcommand{\halfendinyear}{10}
+\FPeval{\decayendinblock}{round(\decayperiodinblock*\halfendinyear*365/\decayperiodinday,0)}
+
+\newcommand{\halfinperiod}{16}
+\FPeval{\decayfactor}{round((0.5)^(1/\halfinperiod),3)}
+\FPeval{\decayby}{round(1-\decayfactor,3)}
+\FPeval{\decaybypercent}{round(\decayby*100,1)}
+% \newcommand{\decaypercent}{4.2}
+% \FPeval{\decayfactor}{round(1-\decaypercent/100,3)}
+
+\newcommand{\genesistotal}{5000000000}
+\newcommand{\mininginflationfirstperiod}{0.0356}
+% \newcommand{\mininginflationfirstperiod}{0.05}
+
+\FPeval{\initialblockreward}{round(\genesistotal*\mininginflationfirstperiod/\decayperiodinblock,1)}
+% \newcommand{\blockreward}{900}
+\FPeval{\eventualblockreward}{round(\initialblockreward*(\decayfactor^40),2)}
+
+\newcommand{\targetinflationpercent}{2}
+
+
+
+\newcommand{\dfb}{5}
+\newcommand{\minerfreeze}{12}
+\newcommand{\deferblk}{{\dfb}\xspace}
+\FPeval{\dfbresult}{clip(\dfb+1)}
+\FPeval{\minerfreezeexec}{clip(\dfb+\minerfreeze)}
+
+
+% !TEX root = ./contract.tex
+
+%% GHAST parameters
+
+\newcommand{\timerweight}{{\color{red}180}}
+
+\newcommand{\heavyw}{\mathrm{h}}
+\newcommand{\heavywvalue}{{\color{red}250}}
+% \newcommand{\palpha}{\alpha}
+% \newcommand{\pbeta}{\beta}
+\newcommand{\palpha}{{\color{red}1000}}
+\newcommand{\valuepbeta}{240}
+\newcommand{\pbeta}{{\color{red}\valuepbeta}}
+\FPeval{\pbetam}{clip(\valuepbeta-1)}
+
+
+\newcommand{\numberofommers}{100}
+
+% Incentive Parameter
+
+\newcommand{\anticonecountepoch}{{10}}
+\newcommand{\anticoneconstant}{{100}}
+
+\newcommand{\difficultyadjustperiod}{5000}
+
+\newcommand{\interest}{{4\%}\xspace}
+\newcommand{\annualinterest}{{4.08\%}\xspace}
+
+
+\newcommand{\commissionrate}{{0.0005}}
+\FPeval{\commissionpercent}{clip(round(\commissionrate*100,3))}
+
+\newcommand{\commissiondecayinday}{91.25}
+\FPeval{\commissiondecayinblock}{clip(\commissiondecayinday*86400/\blocktime)}
+
+%%  Gas limit and difficulty adjustment
+
+\newcommand{\mingas}{{21000}\xspace}
+\newcommand{\mingaslimit}{{5000}\xspace}
+
+% \newcommand{\startdifficulty}{5\times 10^9}
+% \newcommand{\startdifficultyline}{5000000000}
+\newcommand{\startdifficulty}{5\times 10^3}
+\newcommand{\startdifficultyline}{5000}
+
+\newcommand{\mindifficulty}{\startdifficultyline\xspace}
+\newcommand{\diffup}{{1.5}\xspace}
+\newcommand{\diffdown}{{0.5}\xspace}
+
+
+\newcommand{\eragap}{50000}
+\FPeval{\eraexample}{clip(2*\eragap+100)}
+
+%% Storage price
+\newcommand{\sunitsize}{{64B}\xspace}
+\newcommand{\fsunitprice}{\frac{1}{16}}
+\newcommand{\sunitprice}{$1/16$ \coinsign}
+\newcommand{\storagepertoken}{{$1$KB}\xspace}
+\newcommand{\storagebytepertoken}{1024}
+
+
+
+% Version controls
+% \newcommand{\newversion}[1]{{\color{blue} #1}}
+\newcommand{\newversion}[1]{{#1}}
+% \newcommand{\oldversion}[1]{{\color{gray} {#1}}}
+\newcommand{\oldversion}[1]{{\color{gray} {}}}

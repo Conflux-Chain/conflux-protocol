@@ -1,0 +1,651 @@
+% !TEX root = ./tech-specification.tex
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%------------------------------------------------
+
+\section{Basic Components}
+In an overview, the {\name} world-state consists of a list of accounts and the associated account states, and the global state is updated via transactions. 
+The {\name} blockchain stores all processed transactions in blocks, together with necessary information in block headers which enables a total ordering of all blocks.
+In this section we discuss the meaning of accounts, transactions and blocks in more details.
+
+
+\subsection{Accounts}
+\label{subsec:accounts}
+
+The {\name} global state is described in an account model, with the basic storage component called an \emph{account}.
+Every actor, which is either a person or an entity that is able to interact with the {\name} world, has its necessary information stored in an account $\account$  as a key/value pair $(\account_{addr}, \account_{state})$ of address and corresponding states. 
+The account address $\account_{addr}$ is a 160-bit identifier. The account state $\account_{state}= (\account_{basic},\account_{code}, \account_{storage},\account_{deposit},\account_{vote})$ consists of five components. The account basic state $\account_{state}$, the code info $\account_{code}$, the deposit list $\account_{deposit}$ and the vote list $\account_{vote}$ are four serialized sequences in an $\rlp$ structure (c.f. \cite{ETH_yellow}). The account storage $\account_{storage}$ is a set of key-value pairs which map 256-bit address to a serialized storage information in an $\rlp$ structure. 
+Furthermore we note that each account $\account$ is associated with a pair of public key and private key $\left(\account_{pubkey}, \account_{prikey}\right)$.
+The account address is the concatenation of $4$-bit type indicator and a $156$-bit digest of the associated public key: 
+\begin{equation}\label{eq:account-address}
+	\account_{addr} \eqdef \mathsf{Type}_{\account} \circ \kec \left( \account_{pubkey} \right)[100\dots 255]
+\end{equation}
+where $\mathsf{Type}_{\account}\in \B_4$ is the type indicator,
+which is $\mathsf{Type}_{\account}=\typenormal$ for \emph{normal accounts} (a.k.a. \emph{non-contract accounts}), $\mathsf{Type}_{\account}=\typecontract$ for \emph{(Solidity) contracts},
+and $\mathsf{Type}_{\account}=\typereserved$ for \emph{built-in/reserved contracts} (a.k.a. \emph{``precompiled contracts''}).
+
+
+For succinctness and convenience, and as long as there is no ambiguity, we will write $\account$ without subscript for the state of an account and let $a\eqdef \account_{addr}$ denote the corresponding address.
+
+\paragraph{Basic state}
+
+An account basic state $\account_{basic} \eqdef\left( \account_n, \account_b, \account_c,\account_t, \account_o, \account_r, \account_a, \account_p\right)$ consists of the following fields. 
+\begin{itemize}[nosep]
+	\item {\bf nonce:} A scalar counter recording the number of previous activities initiated by this account. Formally denoted by $\account_n\in \N_{256}$. For example, the number of transactions sent from $\account_{addr}$, or the number of contract-creations in the case this account is associated with codes.
+
+	\item {\bf balance:} A scalar value equal to the number of \unit  owned by this account. Formally denoted by $\account_b\in \N_{256}$. 
+
+	\item {\bf codeHash:} The hash of the \cvm code that gets executed when $\account_{addr}$ receives a message call. 
+	Unlike other fields, it is immutable once established. All such code fragments are stored in a state database for later retrieval. This hash is formally denoted by $\account_c\in \B_{256}$,
+	which satisfies $\account_c=\kec\left(\mathbf{p} \right)$ when the stored code is $\mathbf{p}$.  
+
+	\item {\bf stakingBalance:} A scalar value equals to the number of staked \unit. Formally denoted by $\account_t\in \N_{256}$. (See section~\ref{sec:staking} for details)
+	
+	\item {\bf storageCollateral:} A scalar value equals to the number of \unit used as collateral for storage, which will be returned to balance if the corresponding storage is released. Formally denoted by $\account_o\in \N_{256}$. (See section~\ref{sec:collateral} for details)
+	
+	\item {\bf accumulatedInterestReturn:} A scalar value equals to the number of \unit in accumulated interest return. Formally denoted by $\account_r\in \N_{256}$. (See section~\ref{sec:staking} for details)
+	
+	\item {\bf admin:} The address of the administrator $\account_a\in \B_{160}$. (See section~\ref{sec:admin} for details)
+	
+	\item {\bf sponsorInfo:} The sponsor information contains five components: {\bf sponsor for gas}, {\bf sponsor for collateral}, {\bf sponsor gas limit}, {\bf sponsor balance for gas} and {\bf sponsor balance for collateral}. Formally denoted by $\account_p\in (\B_{160})^2\times (\N_{256})^3$. (See section~\ref{sec:sponsor} for details). We use $\account_p[{\sf gas}]_a$, $\account_p[{\sf col}]_a$, 
+	$\account_p[{\sf limit}]_a$, $\account_p[{\sf gas}]_b$ and $\account_p[{\sf col}]_b$ to reference these five components. 
+\end{itemize}
+
+\paragraph{Storage state}
+
+An account's storage state $\account_{storage}$ (or $\account_{\bf s}$ for abbreviation) is a key/value database representing the account's storage state, if $\account$ is a contract account. 
+%
+Every storage entry is keyed by an arbitrary length bit-string $k\in \B^{*}$ and is represented as $(v,o)\in \N_{256}\times \B_{160}$, where $v$ denotes the value stored in this entry and $o$ denotes the owner who provides storage collateral for this entry. (See section~\ref{sec:collateral} for details about storage collateral.)
+
+We use $\account_{\bf s}[k]$ to represent storage entry $(v,o)$ keyed by $k$ and use $\account_{\bf s}[k]_v$ and $\account_{\bf s}[k]_o$ to denote corresponding fields. We denote by $\account_{\bf s}[k]=\varnothing$ for the case the storage state doesn't contain an entry with key $k$. 
+
+
+% Since we have contract address conflict exception, we no longer need these functions.
+% Given a world-state $\st$, an account is \emph{empty} in this state if it has zero nonce, zero balance, and no code.
+% \begin{align}
+% 	\mathsf{EMPTY}(\st,a) \eqdef \left[ \st[a]_c = \kec\big(()\big) \;\land\; \st[a]_n=0 \;\land \;\st[a]_b=0\right]
+% \end{align}
+% An account is \emph{dead} if its account state is non-existent or empty.
+% \begin{align}
+% 	\mathsf{DEAD}(\st, a) \eqdef \left[ \st[a]=\varnothing \;\lor\;\mathsf{EMPTY}(\st,a)\right]
+% \end{align}
+
+% We also define the account validity function $v$ as follows:
+% \begin{align}
+% 	v(\account)\eqdef 
+% 	\left[ \account_n \in 
+% 	\N_{256} \land \account_b\in \N_{256} \land \account_s\in \B_{256} \land \account_c\in\B_{256}\right]
+% \end{align}
+% For every legal world-state $\st$ and for every address $a\in\B_{160}$, 
+% % there is either $\st[a]=\varnothing$ or $v\left(\st[a]\right)=1$.
+% the account with address $a$ is either unused or valid, i.e.
+% \begin{align}
+% 	\forall a\in\B_{160}: \left(\st[a] = \varnothing \right) \lor \left(  v\left(\st[a]\right)\right)
+% \end{align}
+
+% Thus we define the \emph{world-state collapse function} $L_S$ that translates the world-state $\st$ into account states:
+% \begin{align}
+% 	L_S(\st) \eqdef \set{ \big(a, \rlp(\st[a]_n, \st[a]_b, \st[a]_s, \st[a]_c) \big) \;\big|\; a\in\B_{160}
+% 	\land \st[a]\ne \varnothing}
+% \end{align}
+
+% This function $L_S$ and the trie function $\trie$ are used in conjunction to provide a short hash digest of the {\name} world-state.
+
+\paragraph{Code information}
+
+For a contract account $\account$, its code information $\account_{code}\eqdef (\account_{\bf p},\account_{w})$ stores the account code $\account_{\bf p}\in \Byte^*$ and the address $\account_{w}\in \B_{160}$ who paid the code storage collateral.
+
+\paragraph{Staking vote info}
+
+An account's staking vote list $\account_{vote}$ (or $\account_{\bf v}$ for abbreviation) is a key/value set representing the vote staking info unlock at given block number. Each entry is keyed by a block ordering index $i\in\N_{64}$ stores the staking vote amount $s\in \N_{256}$ in $\unit$. It means that the account promises to lock at least $s\;\unit$ before block with order index $i$. See section~\ref{sec:staking} for more details.
+
+\paragraph{Deposit list}
+
+An account's deposit list $\account_{deposit}\in (\N_{256}\times \N_{64}\times \N_{256})^*$ is a series of deposit item. Each entry is a handful of deposited tokens in a ternary tuple of its amount (in \unit), its deposit time (measured in the total number of blocks) and its accumulated interest rate. We use $\account_{deposit}[{\sf amt}],\account_{deposit}[{\sf idx}],\account_{deposit}[{\sf accIR}]$ refers the three components. See section~\ref{sec:staking} for more details.
+$\\$
+
+In initialization of each component, Conflux sets all the bit values, byte values and integers to zero and sets arbitrary length series to empty set, except the code hash which is set to the hash value of empty string. Each account state component is initialized as follows
+\begin{align}
+	\account^0_{basic} &\eqdef (0,0,\kec(\emptystring),0,0,0,0,(0,0,0,0,0)) \\
+	\account^0_{basic\_smp} &\eqdef (0,0,0,0,0) \\
+	\account^0_{code} &\eqdef (\varepsilon,0) \\
+	\account^0_{storage} &\eqdef \varepsilon \\
+	\account^0_{vote} &\eqdef \varepsilon \\
+	\account^0_{deposit} &\eqdef \varepsilon \\
+	\account^0 & \eqdef (\account^0_{basic},\account^0_{code},\account^0_{storage},\account^0_{vote},\account^0_{deposit})\label{eq:default_account}
+\end{align}
+
+%
+Given the {\name} world-state $\st$ and an address $a\in\B_{160}$, we denote by $\st [a]$ for the state $\account_{state}$ of the account $\account$ with address $a=\account_{addr}$, i.e. $\st [a] \eqdef \account_{state}$.
+% \left(\account_n, \account_b, \account_s, \account_c \right)$.
+We denote by $\st[a]\eqdef \varnothing$ if the account with address $a$ is never initialized. 
+%
+For succinctness, we denote by $\st[a]_{\bf s}$ for storage component $\account_{storage}$, $\st[a]_{\bf v}$ for staking vote component $\st[a]_{vote}$ and $\st[a]_{\bf d}$ for deposit component $\st[a]_{deposit}$. 
+
+The world-state $\st$ never stores the account state $\account_{state}$ equals to initialization value $\account^0$. So $\st[a]\eqdef \varnothing$ is equivalent to $\st[a]\eqdef \account^0$. For the key value structure components $\account_{\bf s}$ and $\account_{\bf v}$, we also use the notation $\varnothing$ and zero initialization value interchangeably.
+
+\subsection{Hash Digest of World-State}
+
+\subsubsection{State entries}
+
+Conflux encodes each component of each account in format of $(k,v)\in \B^*\times \B^*$ respectively. 
+
+\paragraph{Basic entry.} The basic entry stores basic components $\account_{basic}$. Specially, for a non-contract address, Conflux doesn't stores the fields only related to contract, like code hash $\account_c$, contract admin $\account_a$ and sponsor info $\account_p$. Let $\account_{basic\_smp}\eqdef (\account_n, \account_b, \account_t, \account_o, \account_r)$ denote the basic component with only the fields in a normal address. Formally
+\begin{align}
+	&k\eqdef \alpha_{addr}\\
+	&v\eqdef \left\{\begin{array}{ll}
+		\rlp(\account_{basic}) & \mathsf{Type}_\alpha=[1000]_2 \\
+		\rlp(\account_{basic\_smp}) & \mathsf{otherwise}
+	\end{array}\right.
+\end{align}
+	
+	
+
+\paragraph{Storage entry.} The storage entry stores all the storages in $\account_{\bf s}$. Given account $\alpha$ with address $\alpha_{addr}$, for each storage key $s\in \B_{256}$ with $\account_{\bf s}[s]_v\neq 0$, we have 
+\begin{align}
+	&k\eqdef \alpha_{addr}\cdot [{\sf data}]_{\sf ch}\cdot s \\
+	&v\eqdef \left\{ \begin{array}{ll}
+		\rlp\left(\account_{\bf s}[s]_v\right) & \alpha_{addr} = \account_{\bf s}[s]_o \\ 
+		\rlp\left(\account_{\bf s}[s]\right) & \mbox{otherwise}
+	\end{array}\right.
+\end{align}
+
+\paragraph{Storage root entry.} The storage root entry stores the storage layout for account $\account$. 
+\begin{align}
+	&k\eqdef \alpha_{addr}\cdot [{\sf data}]_{\sf ch}\\
+	&v\eqdef \emptystring
+\end{align}
+
+\paragraph{Code entry.} The code entry stores the component code info $\account_{code}$. 
+\begin{align}
+	&k\eqdef \alpha_{addr}\cdot [{\sf code}]_{\sf ch}\cdot \alpha_c  \\
+	&v\eqdef \rlp(\account_{code})
+\end{align}
+
+\paragraph{Staking vote list entry.} The staking vote list entry stores the component staking vote list $\account_{vote}$. 
+\begin{align}
+	k&\eqdef \alpha_{addr}\cdot [{\sf vote}]_{\sf ch}  \\
+	v&\eqdef \rlp(\tolist(\account'_{vote}))\\
+	\mbox{where:}&\notag\\ 
+	\account'_{vote} &\eqdef \mbox{$\account_{vote}$ removing all the key $x$ with $\account_{vote}[x]=\account_{vote}[x-1]$}
+\end{align}
+
+\paragraph{Deposit list entry.} The deposit list entry stores the component deposit list $\account_{deposit}$. 
+\begin{align}
+	&k\eqdef \alpha_{addr}\cdot [{\sf deposit}]_{\sf ch}  \\
+	&v\eqdef \rlp(\account_{deposit})
+\end{align}
+
+\subsubsection{Multi-version Merkle Patricia Trie}
+
+Ethereum collects all the key/value pairs into MPT (Merkle Patricia Trie) and updates it during execution of transactions. However, in a high throughput blockchain system, the MPT may be accessed in a high frequency and hence become a bottleneck of performance. Conflux maintains a \textbf{read-through write-back} cache and commits cached changes to MPT periodically. 
+
+Formally, at any time, Conflux maintains three key/value sets $T_0,T_1,T_2$, which are called {\bf snapshot}, {\bf intermediate set} and {\bf delta set} respectively. The later one is the cache of the former one. $T_2$ is the only one updated during transaction execution. In order to balance the keys in MPT {\bf delta set} and achieve a high performance, MPT $T_2$ has a different way in computing keys. Let 
+%
+\begin{align}
+	&p\eqdef\kec(\trie(T_0),\trie(T_1)) \\
+	&f_{addr}(\alpha_{addr},p)\eqdef\kec(p[0..11]\cdot \alpha_{addr})[0..11]\cdot \alpha_{addr} \\ 
+	&f_{store}(s,p)\eqdef \kec(p\cdot s)[4..31]\cdot s\\
+	&\text{(The index here are applied on byte-level.)} \notag
+\end{align}
+
+The key is defined as (the symbols are inherited from the previous section)
+\begin{itemize}[nosep]
+	\item {\bf Basic entry.} $k\eqdef f_{addr}(\alpha_{addr},p)$
+	\item {\bf Storage entry.} $k\eqdef f_{addr}(\alpha_{addr},p)\cdot [{\sf data}]_{\sf ch}\cdot f_{store}(s,p)$
+	\item {\bf Storage root entry.} $k\eqdef f_{addr}(\alpha_{addr},p)\cdot [{\sf data}]_{\sf ch}$
+	\item {\bf Code entry.} $k\eqdef f_{addr}(\alpha_{addr},p)\cdot [{\sf code}]_{\sf ch}\cdot \alpha_c$
+	\item {\bf Staking vote list entry.} $k\eqdef f_{addr}(\alpha_{addr},p)\cdot [{\sf vote}]_{\sf ch}$
+	\item {\bf Deposit entry.} $k\eqdef f_{addr}(\alpha_{addr},p)\cdot [{\sf deposit}]_{\sf ch}$
+ 
+\end{itemize}
+
+\paragraph{Delta set.}
+
+After a successful transaction execution, if a state entry is added, updated or removed after execution of one transaction, its newest content will be added to the delta set. Notice that the delta set only compares the state entry before and after a transaction execution. It is not aware of the intermediate steps during transaction execution. 
+%
+In case of deleting a state entry, an initialization value for corresponding entry will be added to the delta set representing deletion operation. 
+
+The intermediate MPT will be merged to snapshot MPT every $\snapshotperiod$ epochs. In particular, for some integer $N$, after execution of epoch $\snapshotperiod\cdot N$, \footnote{Since Conflux defers the execution of transactions for $\deferblk$ epochs, the \emph{execution of epoch $i$} means the execution for transactions in epoch $i-\deferblk$. See block component {\bf deferredStateRoot} for details.} Conflux will merge intermediate set $T_1$ to snapshot $T_0$ before computing the state root of pivot block on epoch $\snapshotperiod\cdot N$. Each time the intermediate MPT is merged, Conflux sets current delta MPT as new intermediate set and resets delta set as emptyset. Formally,  
+\begin{align}
+	T'_0 &\equiv \mathsf{MPTMerge}(T_0,T_1) \\
+	T'_1 &\equiv T_2 \\
+	T'_2 &\equiv \varnothing
+\end{align}
+%
+where $\mathsf{MPTMerge}$ is the function updates the entries in $T_0$ which have a new version value in $T_1$. Specially, for the entries with initialization value, $T_0$ removes them.  
+
+
+\subsubsection{State root}
+
+Let $\trie(T^{(i)}_0),\trie(T^{(i)}_1),\trie(T^{(i)}_2)$ be the roots of MPT after execution of epoch $i$, then the state root of epoch $i$ should be 
+%
+$$ StateRoot^{(i)}\eqdef\kec(\rlp(\trie(T^{(i)}_0),\trie(T^{(i)}_1),\trie(T^{(i)}_2))).$$
+
+Notice that Conflux doesn't insert $StateRoot^{(i)}$ to the header of pivot block in epoch $i$, see the following for details. 
+
+
+\subsection{Transactions}
+\label{sec:tx}
+
+A {\name} transaction $\tx$ is a single instruction composed by an external actor with a {\name} account $\account$, and this instruction is cryptographically signed under the associated private key $\account_{prikey}$ of the sending account $\account$.
+The authentication key, i.e. the sending account's associated public key $\account_{pubkey}$, is also included in the transaction for verification.
+
+There are two types of transactions depending on the ``destinations'': 
+\begin{enumerate}[nosep]
+	\item {to an account address:} these are normal transactions that may transfer value and/or result in message calls, known as \emph{action transactions};
+
+	\item {to ``nowhere'':} these transactions are used to create new contracts, known as \emph{contract creation transactions} or simply \emph{creation transactions}.
+\end{enumerate}
+Both types of transactions share the following common fields:
+\begin{itemize} [nosep]
+	\item {\bf nonce:} A scalar value equal to the number of previously sent transactions. Formally denoted by $\tx_n \in\N_{256}$.
+
+	\item {\bf gasPrice:} A scalar value indicating the number of \unit to be paid per unit of gas that is consumed as a result of the execution of $\tx$. Formally denoted by $\tx_p\in\N_{256}$.
+
+	\item {\bf gasLimit:} A scalar value indicating the \emph{total} amount of gas paid for the cost of the execution of $\tx$. This is paid up-front, before any actual computation is done, and may not be increased or refunded later. 
+	Formally denoted by $\tx_g\in\N_{256}$.
+	It is the transaction sender's responsibility to avoid any extravagance caused by an unnecessarily high {\bf gasLimit}.
+
+	\item {\bf action:} 
+	A variable size field indicating the action of this transaction, formally denoted by $\tx_a$. 
+	There is a sub-field {\bf create} indicating whether $\tx$ is a contract creation transaction, which we make it implicit for notation convenience. 
+	Thus, for action transactions $\tx_a$ indicates the $160$-bit address of the recipient, which refers to either a normal account or a contract account;
+	otherwise in case of a creation transaction, the recipient is indeed the newly created contract and we interpret $\tx_a$ as the only element in $\B_0$ and write $\tx_a = \emptystring$.
+
+	\item {\bf value:} A scalar value equal to the amount of \unit that the transactions sender wants to transfer to the recipient, i.e. the account specified in $\tx_a$ or the newly created contract.
+	Formally denoted by $\tx_v\in\N_{256}$.
+
+
+	\item \newversion{{\bf storageLimit:} A scalar value indicating the maximum increment of storage used in the execution of $\tx$, measured in bytes. Formally denoted by $\tx_{\ell}\in\N_{64}$.}
+
+	\item \newversion{{\bf epochHeight:} A scalar value specifying the range of epochs where $\tx$ can be executed. Formally denoted by $\tx_e\in\N_{64}$ such that $\tx$ can only be executed between the epochs of $[\tx_e - \txepochbound, \tx_e + \txepochbound]$. }
+
+	\item \newversion{{\bf chainID:} A binary chain id indicating where $\tx$ is intended to be executed. Formally denoted by $\tx_c\in\N_{32}$ and the chain id of {\name} is a constant $\tx_c=503$.} 
+
+	\item {\bf v, r, s:} Corresponding fields of the recoverable ECDSA signature of $\tx$, formally denoted by $\tx_w$, $\tx_r$ and $\tx_s$. 
+\end{itemize}
+
+\smallskip
+In additional to the shared fields, 
+a transaction may contain either of the following fields of unlimited length byte arrays for contract creation and invocation:
+\begin{itemize}[nosep]
+ 	\item {\bf init:} A byte array specifying the \cvm code for the initialization procedure, formally denoted by $\tx_{\bf i} \in \Byte^*$.
+ 	Note that {\bf init} is executed once and discarded thereafter, and it returns another code fragment {\bf body} as the actual contract code that will be executed each time the contract account receives a message call (either through a transaction or due to the internal execution of code).
+
+
+ 	\item {\bf data:} A byte array specifying the input data of the message call to an existing contract, formally denoted by $\tx_{\bf d}\in \Byte^*$.
+
+ \end{itemize} 
+
+There is a function $\sender{\cdot}$ that maps a transaction to its sender using the recoverable ECDSA signature,
+i.e. $\sender{\tx}$ henceforth represents the sender of the transaction $\tx$.
+% 
+For convenience, we further introduce the function $L_{\tx}$ that parses a transaction $\tx$ as follows:
+\begin{align}\label{def:tx_prepare}
+	L_{\tx}(\tx)\eqdef 
+	\begin{cases}
+	\left(\tx_n, \tx_p, \tx_g, \tx_a, \tx_v, \newversion{\tx_\ell,\tx_e,\tx_c,} \tx_{\bf i}, \tx_w,\tx_r,\tx_s \right) & \mbox{if $\tx_a=\emptystring$} \\
+	\left(\tx_n, \tx_p, \tx_g, \tx_a, \tx_v, \newversion{\tx_\ell,\tx_e,\tx_c,} \tx_{\bf d}, \tx_w,\tx_r,\tx_s \right) & \mbox{otherwise}
+	\end{cases}
+\end{align}
+
+\subsection{Blocks}
+\label{sec:block}
+
+The {\name} blockchain organizes all on-chain information in blocks.
+%
+Every {\name} block $\block$ consists of two parts: a block header $\head$ and a list of transactions $\txs$. The header $\head$ contains a list of other unreferenced block headers (a.k.a. \emph{referee} blocks or simply \emph{referees}).
+
+The block header $\head$ is a collection of relevant pieces of information:
+\begin{itemize}[nosep]
+	\item {\bf parentHash:} The Keccak 256-bit hash of the parent block's header, formally denoted by $\head_p\in\B_{256}$.
+	
+	\item {\bf height:} A scalar value equal to the height of the block, which is also the number of parent references to reach the genesis block. 
+	This is formally denoted by $\head_h\in \N_{64}$.
+	The genesis block has a height of zero. 
+	
+	\item {\bf timestamp:} A scalar value equal to the reasonable output of Unix's time() at this block's inception. Formally denoted by $\head_s \in \N_{64}$. 
+
+	\item {\bf author:} The 160-bit address of the author of this block, formally denoted by $\head_a \in \B_{160}$. 
+	This is indeed the beneficiary's address to receive all rewards caused by successfully mining this block.
+
+	\item {\bf transactionRoot:} The Keccak 256-bit hash of the root node of the trie structure populated with each transaction in the transaction list portion of the block, formally $\head_t\in\B_{256}$.
+
+
+
+	\item {\bf deferredStateRoot:} The Keccak 256-bit hash commitment of the state after all ``stable transactions''  are executed and finalized, formally $\head_r\in\B_{256}$.
+	Note that due to \emph{deferred execution} in {\name},  ``stable transactions'' are those included in the past blocks of the pivot block of \deferblk epochs ago, i.e. \deferblk steps along the parent references.
+	\begin{itemize}
+		\item If the {\bf blame} field is zero, i.e. $\head_m=0$, then $\head_r$ is the root node of the state trie after all ``stable transactions''  are executed and finalized.
+	
+		\item Otherwise if $\head_m>0$, then $\head_r$ will be the Keccak 256-bit hash of the vector consisting of the state root in the previous case and the corrected state roots of $\block$'s ancestors until (not including) the first ancestor that is not blamed.
+	\end{itemize}
+	
+	
+
+	\item {\bf deferredReceiptsRoot:} The Keccak 256-bit hash commitment of the receipts of each transaction executed when updating the {\bf deferredStateRoot} field of the block, formally $\head_e\in\B_{256}$. 
+	\begin{itemize}
+		\item If the {\bf blame} field is nonzero, i.e. $\head_m=0$, then $\head_e$ is the Keccak 256-bit hash of the root node of the trie structure populated with the receipts of transactions in the epoch that is just executed.
+		
+		\item Otherwise if $\head_m>0$, then $\head_e$ will be the Keccak 256-bit hash of the vector consisting of the receipt root in the previous case and the corrected receipt roots of $\block$'s ancestors until (not including) the first ancestor that is not blamed.
+	\end{itemize}
+	
+	 
+
+
+	\item {\bf deferredLogsBloomHash:} The Keccak 256-bit hash commitment of the Bloom filter composed from indexable information (logger address and log topics) contained in each log entry from the receipts of all transactions executed when updating the {\bf deferredStateRoot} field, formally $\head_b\in\B_{256}$.
+	\begin{itemize}
+		\item If the {\bf blame} field is zero, i.e. $\head_m=0$, then $\head_b$ is the Keccak 256-bit hash commitment of the Bloom filter composed from receipts of transactions in the epoch that is just executed.
+	
+		\item Otherwise if $\head_m>0$, then $\head_b$ will be the Keccak 256-bit hash of the vector consisting of the Bloom filter commitment in the previous case and the corrected Bloom filter commitments of $\block$'s ancestors until (not including) the first ancestor that is not blamed.
+	\end{itemize}
+
+	\item {\bf blame:} A scalar value $\head_{m}\in\N_{32}$ indicating the number of immediate ancestors whose header is incorrect in the execution state fields: {\bf deferredStateRoot}, {\bf deferredReceiptsRoot}, {\bf deferredLogsBloomHash}, or {\bf blame}. 
+	This {\bf blame} field is relevant in reward distribution.\\
+	For example, if $\parent{\block}$ is correct on all the four fields then $\head_{m}=0$; if any of these fields is wrong in $\parent{\block}$, then $\head_{m} \ge 1$.
+
+
+	\item {\bf difficulty:} A scalar value $\head_d\in\N_{256}$ specifying the target difficulty level of this block. This is calculated from the previous block's difficulty level and the timestamp.
+
+
+	\item {\bf adaptiveWeight:} The Boolean value $\head_w\in\B$ indicating whether adaptive weight is triggered.
+
+	\item {\bf gasLimit:} A scalar value $\head_{\ell}\in\N_{256}$ equal to the current limit of gas expenditure per block. 
+	Starting from $\head_{\ell}(\gblock)\eqdef \startblockgastlimit=\startblockgastlimitline$.
+
+	\item {\bf refereeHash:} The serialized $\rlp$ sequence of the referee list consisting of  Keccak 256-bit hashes of referee blocks, formally denoted by $\head_o \in\Byte^*$. 
+	This list consists of up to $\numberofommers$ hash references of referee blocks.
+	For convenience, we let $\referees(\block)$ denote these referee blocks of a block $\block$.
+	
+	\item {\bf customData:} A customized field with an arbitrary length list of byte string $\head_c\in (\Byte^*)^*$. 
+
+	% {The following corresponds to the PoW part:}
+	\item {\bf mixHash:} A $256$-bit hash which, combined with the {\bf nonce}, proves that a sufficient amount of computation has been carried out on this block; formally $\head_x\in\B_{256}$. \todo{}{I'm not seeing this field in code}
+
+	\item {\bf nonce:} A $256$-bit value which
+	proves that a sufficient amount of computation has been carried out on this block, formally $\head_n\in\B_{256}$.
+
+
+\end{itemize}
+
+Formally, a block header is defined as 
+%
+\begin{align}
+	\head = (\head_p,\head_h,\head_s,\head_s,\head_a,\head_t,\head_r,\head_e,\head_b,\head_m,\head_d,\head_w,\head_\ell,\head_o,\head_c[0],\cdots,\head_c[-1],\head_n)
+\end{align}
+	
+The other part of $\block$ is simply a list of transactions. Therefore the block $\block$ can be represented as follows:
+\begin{align}
+	\block\equiv \left(\block_\head, \block_\txs \right)
+\end{align}
+
+% \note{We notice that in many situations it is more convenient to have a list of all blocks in an epoch (under the pivot block's view) rather than a list of {\bf directly referenced blocks}. It is under discussion whether $\head_o$ should be a list of all other blocks in the epoch, i.e. $\epoch(\block)-\block \eqdef  \past(\block) - \past(\parent{\block})- \parent{\block}$ including those blocks indirectly referenced by direct referred blocks of $\block$, so that it is clear from $\block$ itself what its epoch looks like.
+
+\subsubsection{Transaction Receipt}
+
+For convenience and easy verification of the outcome of transaction execution, 
+we introduce \emph{transaction receipt} to record certain information of every executed transaction.
+When updating the {\bf deferredStateRoot} $\head_r$ of a block,
+we encode a receipt $\block_{\rec}[i]$ for the $i$-th executed transaction
+and store these receipts in an index-keyed trie.
+This root is recorded in the header as $\head_e\in\B_{256}$.
+
+
+For every executed transaction $\tx$, the receipt $R\eqdef \left(R_u, R_f, R_g, R_b, R_{\bf l}, R_z,R_{\bf o},R_s,R_{\bf i}\right)$ is a tuple consisting of six fields:
+\begin{itemize}[nosep]
+	\item $R_u\in\N_{256}$ is the cumulative gas used \emph{in the epoch where $\tx$ is executed} as of immediately after $\tx$ has been processed;
+	
+	\item $R_f\in\N_{256}$ is the gas fee charged for the current transaction. 
+	
+	\item $R_g \in \B$ denotes whether the gas fee is sponsored. 
+
+	\item $R_{\bf l}$ is the set of logs created in the execution of $\tx$;
+
+	\item $R_b\in\B_{2048}$ is the Bloom filter composed from logs in $R_{\bf l}$;
+
+	\item $R_z\in\N$ is the status code of the transaction $\tx$.
+	
+	\item $R_s \in \B$ denotes whether the storage collateral is sponsored. 
+	
+	\item $R_{\bf o}$ is the set of incremental storage (in bytes) for addresses in the execution of $\tx$;
+
+	\item $R_{\bf i}$ is the set of decremental storage (in bytes) for addresses in the execution of $\tx$;
+\end{itemize}
+
+The sequence $R_{\bf l}\eqdef \left(O_0,O_1,\dots\right) \in \left(\B_{160} \times \left(\B_{256}\right)^*\times \B_*\right)^*$ is a series of log entries,
+where each log entry $O$ is a tuple of the logger's address $O_a\in \B_{160}$,
+a possibly empty series of $256$-bit log topics $O_{\bf t}\eqdef \left(O_{{\bf t}_0}, O_{{\bf t}_1},\dots \right)$, such that $O_{{\bf t}_i}\in\B_{256}$ for every $i\in\N$,
+and a sequence of data $O_{\bf d}\in\B_*$:
+\begin{align}
+	O\eqdef \left( O_a, O_{\bf t}, O_{\bf d} \right)
+\end{align}
+
+The Bloom filter function $M$ reduces a log entry into a single $256$-byte ($2048$-bit) hash as follows:
+\begin{align}
+ 	M(O)\eqdef \bigvee_{x\in\set{O_a}\union O_{\bf t}}\left( M_{3:2048}(x) \right)
+\end{align} 
+where $M_{3:2048}$ is the specialized Bloom filter that sets three out of $2048$ bits to $1$ on input of an arbitrary byte sequence,
+as formally defined in \cite{ETH_yellow}.
+
+The sequence $R_{\bf o}\eqdef \left(P_0,P_1,\dots\right) \in \left(\B_{160} \times \B_{256}\right)^*$ where each entry $P$ is a tuple of an address and the incremental storage collateral of such address. $R_{\bf o}$ only collects the addresses with positive incremental storage collateral. It is sorted in ascending order of addresses and each address only appears once. $R_{\bf i}$ has the same settings as $R_{\bf o}$.
+
+\subsubsection{Serialization}
+
+The function $L_B$ and $L_H$ are the preparation functions for a block and block header respectively (similar as $L_{\tx}$ defined in \cref{def:tx_prepare}),
+where we recall that $L_{\tx}^*$ and $L_H^*$ refer to element-wise sequence transformations.
+We assert the types and order of the structure when the $\rlp$ transformation is required:
+%
+\begin{align}
+	L_H(\head) &\equiv \left(\head_p, \head_h, \head_s, \head_a, \head_t,\head_r,\head_e,\head_b, \head_m, \head_d, \head_w,  \head_\ell,  \head_o, \head_x, \head_n  \right)\\
+	L_B(\block) &\equiv \left( L_H(\block_\head), L_{\tx}^*(\block_\txs) \right)
+\end{align}
+
+In addition, we let $L_O$ be the preparation function for the referee blocks as follows:
+\begin{align*}
+	L_O(\head)\equiv L_H^*(\head_o)
+\end{align*}
+
+The component types are defined thus: 
+\begin{align}
+	& \head_p \in \B_{256} 
+	\qquad &\land \qquad &\head_h\in \N_{64}
+	\qquad &\land \qquad &\head_s\in \N_{64}
+	\qquad &\land \qquad &\head_a\in \B_{160}
+	\qquad &\land \qquad &\head_t\in \B_{256}
+	\notag\\
+	\land \qquad &\head_r\in \B_{256}
+	\qquad & \land \qquad &\head_e\in \B_{256}
+	\qquad &\land \qquad &\head_b\in \B_{256} 
+	\qquad &\land \qquad &\head_m\in \N_{32}	
+	\qquad &\land \qquad &\head_d\in \N_{256}	
+	\notag\\
+	\land \qquad &\head_w\in \B
+	\qquad &\land \qquad &\head_\ell\in \N_{256}	% \qquad \land \qquad \head_g\in \B_{256}
+	\qquad &\land \qquad &\head_{o} \in\left(\B_{256}\right)^{\le \numberofommers}
+	% \qquad &\land \qquad &\head_x\in \Byte_{\le 32}
+	\qquad &\land \qquad &\head_x\in \B_{256}
+	\qquad &\land \qquad &\head_n\in \B_{256}
+\end{align}
+
+Now we have the specification for the construction of a formal block structure. 
+With the $\rlp$ transformation we can further serialize this structure into a sequence of bytes ready for transmission and storage. 
+ 
+
+  
+\subsubsection{Well-formedness}
+\label{sec:internal consistency}
+Every {\name} block $\block$ (with header $\head=\head(\block)$) is \emph{well-formed} if and only if it is internally consistent and satisfies the following: 
+\begin{align}
+	\head_t = \trie\left(\forall i<||\block_{\txs}||, i\in \N: \left(\rlp(i),\rlp(L_{\tx}(\block_{\txs}[i]))\right) \right)  
+\end{align}
+
+Intuitively, a block $\block$ is well-formed if its header $\head$ is consistent with the contents inside $\block$.
+In other words, $\head$ effectively represents the whole block $\block$.
+
+
+
+
+\subsubsection{Block Header Validity}
+\label{sec:valid header}
+
+Given a block $\block$ with header $\head=\head(\block)$, 
+we decide whether the header $\head$ is valid by 
+checking the following fields of $\head$
+and comparing to $\head\big(\parentf(\block)\big)$ and $\past(\block)$ when necessary:
+
+\begin{itemize}[nosep]
+	\item the height is increased by one;
+	\item the timestamp (in Unix's time()) is increased;
+
+	\item the canonical gas limit does not change too much (i.e. more than $1/1024$) and it remains above $\minblockgaslimit$;
+
+	\item the target difficulty is properly set according to Section~\ref{sec:difficulty};
+
+	\item the proof-of-work quality exceeds the target difficulty; 
+
+	% \item the {\bf extraData} is no more than $32$ bytes;
+
+	\item the parent is chosen properly from $\past(\block)$ (the past view of $\block$) following the GHAST rule;
+
+	\item the adaptive weight flag {\bf adaptiveWeight} must set properly according to the GHAST rule with respect to $\past(\block)$;
+
+	% \item the deferred receipt root {\bf deferredReceiptRoot} and deferred Bloom filter of receipt logs {\bf deferredLogsBloomHash} must be correct as right after $\epf\left(\parentf^{(\dfb)}(\block)\right)$;
+
+	% \item the blame value {\bf blame} must be correct;
+
+	% \item the transaction root {\bf transactionRoot} is properly generated;
+
+	\item the referee list {\bf refereeHash} properly decomposes to block headers.
+
+\end{itemize}
+
+\medskip
+
+Formally, the header $\head$ is valid if and only if: 
+
+
+\begin{align}
+	&{\head_h} = \head\left(\parentf(\block)\right)_{h}+1\\
+	\land \qquad &{\head_s} > \head\left(\parentf(\block)\right)_{s}\\
+	\land \qquad & \left|{\head_l} -\head\left(\parentf(\block)\right)_{l}\right|< \left\lfloor\frac{\head\left(\parentf(\block)\right)_{l}}{1024}\right\rfloor \qquad
+	\land \qquad {\head_l}\ge \minblockgaslimit \label{eq:blockgas}\\
+	\land \qquad & \text{${\head_d}$ is legitimate according to the difficulty adjusting function}\\
+	\land \qquad & \text{${\head_x}$ is the correct mix-hash (see (\ref{eq:mixhash}) in Section~\ref{sec:pow})}\\
+	\land \qquad & \quality(\head) \ge {\head_d}\\
+	\land \qquad & \newversion{\text{$\parentf(\block)$ specified by ${\head_p}$ is legitimate according to GHAST rule in $\past(\block)$}}\\
+	\land \qquad & \newversion{\text{${\head_w}$ is legitimate according to the GHAST rule in $\past(\block)$}}\\
+	% \land \qquad & 
+	% \oldversion{{\head_r} = \trie\left( L_S\left(\transition\left(\st, \epf\left(\parentf^{(\deferblk)}(\block)\right)\right)\right) \right) \label{eq:stateroot}}\\
+	% \land \qquad & 
+	% \newversion{\text{${\head_e}$ and ${\head_b}$ properly encode receipts generated in the execution of $\epf\left(\parentf^{(\deferblk)}(\block)\right)$}}\\
+	% \land \qquad & \newversion{\text{${\head_m}$ is legitimate according to the Blaming rule}}\\
+	\land \qquad & \newversion{\text{${\head_o}$ is well-formed and encodes referee block headers}}
+\end{align}
+
+
+\oldversion{
+	In (\ref{eq:stateroot}), $\st$ refers to the base state just before executing $\epf\left(\parentf^{(\deferblk)}(\block)\right)$.
+	In particular, $\st$ is exactly the final state after executing $\parentf^{(\dfbresult)}(\block)$.
+	% 
+	Furthermore,
+	recalling that $L_S$ is the world-state collapse function, 
+	% and the parent block of $\block$ contains in its header exactly the state root after executing :
+	the state root of $\st$ is stored in the header of $\parentf(\block)$ and it satisfies the following:
+	\begin{align}
+		\trie\left( L_S(\st)\right)= \parentf(\block)_{\head_r}
+	\end{align}
+}
+
+\newversion{
+	We remark that the validity of $\head$ only matters for consensus of total order of blocks,
+	and it \emph{does not} rely on the correctness of the execution related fields {\bf deferredStateRoot}, {\bf deferredReceiptsRoot}, {\bf deferredLogsBloomHash} and {\bf blame} of the header, 
+	i.e. ${\head_r}, {\head_e}, {\head_b}$ and ${\head_m}$ of $\head$ respectively.
+	However, being incorrect in these fields may indicate that the author of the block fails to maintain the state and execute the transactions properly, 
+	in which case we still count the contribution of this block to consensus but the author gets no reward,
+	as discussed in Section~\ref{sec:blaming} and Section~\ref{sec:incentive}.
+}
+
+\subsubsection{Partially (In)Valid Blocks}
+\label{sec:pvalid header}
+
+We call a block $\block$ \emph{partially valid} if 
+\newversion{either $\parent{\block}$ is marked as partially valid or} 
+its header $\head=\head(\block)$ passes all the assertions as in Section~\ref{sec:valid header} except for the following:
+\begin{itemize}
+	\oldversion{\item the deferred state root $\head_r$ is incorrect;}
+
+	\oldversion{\item the parent reference $\parent{\block}$ specified by $\block_{\head_p}$ is not chosen by the GHOST rule in $\past(\block)$.}
+
+	\newversion{
+	\item the parent reference $\parent{\block}$ specified by $\head(\block)_{p}$ is not chosen properly according to the GHAST rule in $\past(\block)$;
+
+
+	\item the adaptive weight flag $\head(\block)_{w}$ is not set properly according to the GHAST rule in $\past(\block)$;
+
+
+	\item the target difficulty $\head(\block)_{d}$ satisfies the threshold condition of difficulty adjustment but it is not calculated properly according to the GHAST difficulty adjusting function.}
+\end{itemize}
+
+
+
+A partially valid block may not be referenced by honest blocks in several hours after it is released. 
+When a block becomes old and loses the ability to influence the pivot chain, we do not care about whether a block is partially valid or not. See Section~\ref{sec:block validate} for details. 
+Once a partially valid block is accepted, then it is treated as a fully valid block except for the decision of timer chain (Section~\ref{sec:timer chain}).
+
+
+We note that as long as the target difficulty is legitimate and the proof of work is valid,
+the partially valid block can still contribute to the throughput.
+This is because we allow referencing partially valid blocks and the transactions inside will be processed as in any fully valid block.
+% 
+We further remark that since the producer of a partially valid block is entitled to no reward, transaction fees may be burnt in case these transactions are only collected in partially valid blocks.
+
+
+
+
+
+
+
+\subsubsection{Blaming Mechanism}
+\label{sec:blaming}
+	
+	The {\bf blame} field is introduced for easy verification of states by light nodes.
+	Intuitively, this field represents the vote to the latest ancestor block which commits to a correct state, 
+	i.e. the author of the current block agrees with the committed state (represented in {\bf deferredStateRoot}, {\bf deferredReceiptsRoot}, {\bf deferredLogsBloomHash}, and {\bf blame}) of that block.
+	We emphasize that these fields are \emph{not} checked for validity of a block, however, committing to an incorrect state may lead to loss of block reward.
+
+
+
+	More specifically, $\head(\block)_{m}$ should be set to the minimum non-negative number such that $\parentf^{\left(\head(\block)_{m}+1\right)}(\block)$ is correct on all the four fields of {\bf deferredStateRoot}, {\bf deferredReceiptsRoot}, {\bf deferredLogsBloomHash}, and {\bf blame}.
+	For example, $\head(\block)_{m}$ should be $1$ if $\parent{\block}$ is incorrect in $\head(\parent{\block})_{r}, \head(\parent{\block})_{e}, \head(\parent{\block})_{b}$ or $\head(\parent{\block})_{m}$ while $\parentf^{(2)}(\block)$ is correct in these fields.
+
+	Then, in the current block $\block$'s view, all blocks in between of $\block$ and $\parentf^{\left(\head(\block)_{m}+1\right)}(\block)$, i.e. $\parentf(\block), \cdots, \parentf^{\left(\head(\block)_{m}\right)}(\block)$, are committing to incorrect states, for which we say that those blocks are (directly) \emph{blamed} by $\block$.
+	Furthermore, since $\block$ agrees with the state committed in $\parentf^{\left(\head(\block)_{m}+1\right)}(\block)$,
+	the blocks blamed by $\parentf^{\left(\head(\block)_{m}+1\right)}(\block)$ is also (indirectly) blamed by $\block$, and recursively we can determine all the blocks on $\chain(\block)$ that are blamed by the newest block $\block$.
+
+	For blocks off $\chain(\block)$ (which is indeed the pivot chain in $\past(\block)$ as long as $\block$ is valid), 
+	we do a best effort test to decide whether they are blamed by $\block$.
+	More precisely,
+	every block $\block'$ must have determined a set of blocks blamed by $\block'$ along $\chain(\block')$,
+	and $\block'$ is blamed by $\block$ if they do not agree on exactly the same set of blamed blocks in the intersection $\chain(\block)\bigcap\chain(\block')$.
+	We remark that no further check is applied on the execution related fields $\block'_r,\block'_e,\block'_b$ of $\block'$ as long as $\block'$ is off the current pivot chain.
+
+	Thus we have determined for every block $\block'$ whether it is blamed by any other block $\block$.
+	The punishment for blamed blocks (in particular, those blamed by the latest block on the pivot chain) is specified in Section~\ref{sec:incentive}.
+
+	In addition, the fields of state commitments, i.e. {\bf deferredStateRoot}, {\bf deferredReceiptsRoot}, {\bf deferredLogsBloomHash}, 
+	would be handled differently when being blamed, as briefly described at the beginning of Section~\ref{sec:block}.
+	That is, if $\head_m>0$ and the those fields are blamed, 
+	then the commitment will be a Keccak hash of the vector consisting of the correct commitments.
+	For example, if a block $\block$ has $\head(\block)_m=2$ such that $\parentf(\block),\parentf^{(2)}(\block)$ are blamed but $\parentf^{(3)}(\block)$ is not, then the {\bf deferredStateRoot} field 
+	$\head(\block)_r$ of block $\block$
+	would be 
+	\begin{align}
+		\head(\block)_r = \kec\left( \mathrm{CorrectDeferredStateRoot}(\block), \mathrm{CorrectDeferredStateRoot}\big(\parentf(\block)\big), \mathrm{CorrectDeferredStateRoot}(\parentf^{(2)}\big(\block)\big) \right)
+	\end{align}
+	where $\mathrm{CorrectDeferredStateRoot}(\cdot)$ is the function that returns the correct value of the deferred state root, 
+	which is a $256$-bit Keccak hash, that should be filled in the given block.
+	Note that 1) $\rlp$ serialization is not used in the vector since each element has fixed length,
+	and 2) the vector length only depends on the {\bf blame} field, regardless of correctness of individual fields in  blamed blocks.
+	Similar rules apply to  {\bf deferredReceiptsRoot} and {\bf deferredLogsBloomHash}, i.e. $\head(\block)_e$ and $\head(\block)_b$.
+

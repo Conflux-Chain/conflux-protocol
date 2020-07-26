@@ -1,0 +1,520 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Stylish Article
+% LaTeX Template
+% Version 2.1 (1/10/15)
+%
+% This template has been downloaded from:
+% http://www.LaTeXTemplates.com
+%
+% Original author:
+% Mathias Legrand (legrand.mathias@gmail.com) 
+% With extensive modifications by:
+% Vel (vel@latextemplates.com)
+%
+% License:
+% CC BY-NC-SA 3.0 (http://creativecommons.org/licenses/by-nc-sa/3.0/)
+%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%----------------------------------------------------------------------------------------
+%	PACKAGES AND OTHER DOCUMENT CONFIGURATIONS
+%----------------------------------------------------------------------------------------
+
+\documentclass[fleqn,10pt]{SelfArx} % Document font size and equations flushed left
+
+
+\usepackage[english]{babel} % Specify a different language here - english by default
+
+% \usepackage{lipsum} % Required to insert dummy text. To be removed otherwise
+
+\usepackage{xspace}
+\usepackage[flushleft]{threeparttable}
+\usepackage[nomessages]{fp}% http://ctan.org/pkg/fp
+\usepackage{tabu}
+\usepackage{appendix}
+\usepackage{titlesec}
+\usepackage{apptools}
+\usepackage{tikz}
+%----------------------------------------------------------------------------------------
+%	MACROS
+%----------------------------------------------------------------------------------------
+
+\input{symbols}
+
+
+%  Remark and comments
+
+% slience all the notes in the publish version
+% \newcommand{\underdiscussion}[1]{}
+% \newcommand{\guangsays}[1]{}
+% \newcommand{\note}[1]{}
+% \newcommand{\todo}[2]{}
+
+\newcommand{\guangsays}[1]{{\color{red}\textbf{}#1}}
+\newcommand{\underdiscussion}[1]{{\color{blue}\textbf{}#1}}
+\newcommand{\note}[1]{{\color{red} $\langle$NOTE: #1$\rangle$}}
+\newcommand{\todo}[2]{{\color{red} $\langle$TODO [#1]: #2$\rangle$}}
+
+%----------------------------------------------------------------------------------------
+%	ALGORITHMS
+%----------------------------------------------------------------------------------------
+
+\usepackage[figure,vlined,linesnumbered]{algorithm2e}
+%----------------------------------------------------------------------------------------
+%	STRIKE OUT
+%----------------------------------------------------------------------------------------
+\usepackage[normalem]{ulem}
+
+
+%----------------------------------------------------------------------------------------
+%	COLUMNS
+%----------------------------------------------------------------------------------------
+
+\setlength{\columnsep}{0.55cm} % Distance between the two columns of text
+\setlength{\fboxrule}{0.75pt} % Width of the border around the abstract
+\usepackage{array,tabularx,multirow}
+
+%----------------------------------------------------------------------------------------
+%	COLORS
+%----------------------------------------------------------------------------------------
+
+\definecolor{color1}{RGB}{0,0,90} % Color of the article title and sections
+\definecolor{color2}{RGB}{150,150,80} % Color of the boxes behind the abstract and headings
+\definecolor{color3}{RGB}{120,120,10} % Color of the boxes behind the abstract and headings
+
+
+\definecolor{backgroundcolor}{RGB}{250,250,233} % Color of the page background
+
+\pagecolor{backgroundcolor}
+%----------------------------------------------------------------------------------------
+%	HYPERLINKS
+%----------------------------------------------------------------------------------------
+
+\usepackage{hyperref} % Required for hyperlinks
+\hypersetup{hidelinks,colorlinks,breaklinks=true,urlcolor=color3,citecolor=color1,linkcolor=color1,bookmarksopen=false,pdftitle={Title},pdfauthor={Author}}
+
+\usepackage{cleveref}
+
+\usepackage{tabu} %requires array.
+
+%This should be the last package before \input{Version.tex}
+\PassOptionsToPackage{hyphens}{url}\usepackage{hyperref}
+% "hyperref loads the url package internally. Use \PassOptionsToPackage{hyphens}{url}\usepackage{hyperref} to pass the option to the url package when it is loaded by hyperref. This avoids any package option clashes." Source: <https://tex.stackexchange.com/questions/3033/forcing-linebreaks-in-url/3034#comment44478_3034>.
+% Note also this: "If the \PassOptionsToPackage{hyphens}{url} approach does not work, maybe it's "because you're trying to load the url package with a specific option, but it's being loaded by one of your packages before that with a different set of options. Try loading the url package earlier than the package that requires it. If it's loaded by the document class, try using \RequirePackage[hyphens]{url} before the document class." Source: <https://tex.stackexchange.com/questions/3033/forcing-linebreaks-in-url/3034#comment555944_3034>.
+% For more information on using the hyperref package, refer to e.g. https://en.wikibooks.org/w/index.php?title=LaTeX/Hyperlinks&stable=0#Hyperlink_and_Hypertarget.
+
+\makeatletter
+ \newcommand{\linkdest}[1]{\Hy@raisedlink{\hypertarget{#1}{}}}
+\makeatother
+\usepackage{seqsplit}
+
+
+
+%----------------------------------------------------------------------------------------
+%	ARTICLE INFORMATION
+%----------------------------------------------------------------------------------------
+
+\JournalInfo{[Oceanus v0.6.0]} % Journal information
+\Archive{\today} % Additional notes (e.g. copyright, DOI, review/research article)
+
+\PaperTitle{{\name} Protocol Specification} % Article title
+
+\Authors{Chenxing Li\textsuperscript{$\dagger$}, Guang Yang\textsuperscript{$\dagger$} } % Authors
+\affiliation{\textsuperscript{$\dagger$}\textit{{\name} Dev Team} 
+\begin{figure}[ht]\centering
+\includegraphics[width=0.5\linewidth]{figs/logo}
+\end{figure}
+} % Author affiliation
+%\affiliation{\textsuperscript{2}\textit{Department of Chemistry, University of Examples, London, United Kingdom}} % Author affiliation
+%\affiliation{*\textbf{Corresponding author}: john@smith.com} % Corresponding author
+
+\Keywords{} % Keywords - if you don't want any simply remove all the text between the curly brackets
+\newcommand{\keywordname}{Keywords} % Defines the keywords heading name
+
+%----------------------------------------------------------------------------------------
+%	ABSTRACT
+%----------------------------------------------------------------------------------------
+
+\Abstract{
+The success of Bitcoin and its follow-ups have demonstrated the value of decentralized consensus system among anonymous participants not trusting each other.
+On top of the consensus network there can be a public ledger or even a general state transition machine, 
+such that all participants agree on the state of the ledger or the state machine.
+Conceptually the state machine can be Turing-complete and hence essentially a ``world computer'' shared by all participants, whose results cannot be tampered by any single person or entity.
+However, the processing power of the shared state machine is currently bottlenecked on the throughput of underlying consensus system.
+
+{\name} implements a Turing-complete state machine on top of a high-throughput consensus network.
+% , which is capable of handling thousands of transactions per second.
+To achieve a throughput of thousands of transactions per second, {\name} guarantees consensus on the total order of blocks organized in a \tg.
+In this way, all forked blocks contribute to the security and throughput of {\name} as well.
+In this work we discuss {\name} protocol design and implementation specifications.
+}
+
+%----------------------------------------------------------------------------------------
+
+\begin{document}
+
+\flushbottom % Makes all text pages the same height
+
+\maketitle % Print the title and abstract box
+
+\setcounter{tocdepth}{3}
+
+\tableofcontents % Print the contents section
+
+\thispagestyle{empty} % Removes page numbering from the first page
+
+%----------------------------------------------------------------------------------------
+%	ARTICLE CONTENTS
+%----------------------------------------------------------------------------------------
+\newpage
+\section{Introduction} % The \section*{} command stops section numbering
+
+%\addcontentsline{toc}{section}{Introduction} % Adds this section to the table of contents
+
+Since the born of Bitcoin, various blockchain projects have demonstrated extraordinary success with the power of consensus among permissionless and trustless parties.
+The most successful blockchain project after Bitcoin is widely considered to be Ethereum, which generalizes the blockchain paradigm from a specialized value-transfer system to a more generalized Turing-complete state machine that allows conceptually all kinds of computation.
+This generalized state machine, known as \emph{Ethereum Virtual Machine} (EVM), makes the Ethereum network essentially a decentralized computing platform 
+where the state advances on input of transactions.
+Sometimes Ethereum is referred to as the ``world computer'' that nobody can shut down, 
+except that its processing power is rather poor and severely bounded by the throughput of underlying consensus.
+
+The consensus throughput of Bitcoin is (in expectation) one block per $10$ minutes, with block size $1$MB (or $2$MB with Segregated Witness (segwit)).
+Bitcoin is set to small block size and low generation rate mainly for security concerns.
+Intuitively, when there is no adversary, the natural probability of forks is proportional to the ratio of  block broadcasting time to block (generation) time,
+since under the longest chain rule honest mining power may keep working on a fork during the propagation of a newly mined block.
+Ethereum applies a tailored version of GHOST rule \cite{GHOST} and smaller block size to achieve a much shorter block time, i.e. roughly $<100$KB per $15$ seconds.
+Inclusive Block Chain Protocol \cite{Inclusive} is a ``block-DAG'' proposal which defines a total order of blocks in a directed acyclic graph (DAG) rather than a chain, with the major advantage over GHOST that all forked blocks contribute to the consensus throughput as well. 
+Another line of scaling techniques trades security and decentralization for scalability by using sharding, sidechains, or other second layer extensions.
+In extreme cases, centralized and somehow permissioned consensus systems are implemented in practice.
+
+
+{\name} is a project which aims at building a high throughput first layer consensus system without any compromises in security and decentralization; a generalized computation platform that securely processes at least thousands of transactions per second which makes the  throughput of consensus is no more a bottleneck.
+The positioning of {\name} is a strong backbone consensus network on which a numerous number of unprecedented applications and extensions can germinate and thrive.
+Technically, we follow a similar idea as \cite{Inclusive} but organize blocks in a \tg, 
+which enables a fast implementation of the {\name} protocol.
+
+
+%------------------------------------------------
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% \section{Conventions}
+\input{Convention}
+
+
+%------------------------------------------------
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% \section{Basic Components}
+\input{Components}
+
+
+%------------------------------------------------
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%% \section{Consensus}
+
+\input{Consensus}
+
+\input{Checkpoint}
+
+
+%------------------------------------------------
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%  \section{Transaction Execution}
+
+
+\input{tx_processing}
+
+
+
+%------------------------------------------------
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%  \section{Internal Contracts}
+
+\newversion{
+	\input{collateral}
+	
+	\input{internal_contract}
+}
+%------------------------------------------------
+
+\input{pow}
+
+
+%------------------------------------------------
+
+\input{incentive}
+
+%------------------------------------------------
+
+% \section{Governance}
+
+% \lipsum[47-49] % Dummy text
+
+%------------------------------------------------
+% \pagebreak[4]
+\section{Concrete Protocol Implementation}\label{sec:parameters}
+
+% \subsection{Parameters}
+
+% \lipsum[50-53] % Dummy text
+
+Concretely, we set the following parameters for \name.\\ 
+{\color{red} Note that the numbers here are only for the most recent testnet and may change in the future.}
+
+\par
+\begin{center}
+\begin{tabular}{ll}
+\toprule
+Parameter & Value \\
+\midrule
+Block time & $\blocktime$ s \\
+Maximum block size bound & \maxblocksize \\
+Starting coinbase award & $\initialblockreward$ \coinsign \\
+Starting difficulty ($\mathbf{d}_0$) & $\startdifficulty=\startdifficultyline$ \\
+Starting block gas limit & $\startblockgastlimit=\startblockgastlimitline$ \\
+Anti-cone penalty factor ($\gamma$) & $\anticoneconstant$ \\
+Deferred execution & \deferblk epochs\\
+Mining reward freezing time & \minerfreeze\xspace epochs \\
+Snapshot period & \snapshotperiod\xspace epochs \\ 
+% Internal Contract Address & \\
+AdminControl Contract Address& $\admincontract$ \\
+SponsorControl Contract Address& $\sponsorcontract$ \\
+Staking Contract Address& $\stakingcontract$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+\par
+
+
+In \name we use $\kec$ as the collision-resistant hash function unless otherwise explicitly specified.
+
+For authentication in the current version of \name, we use the same recoverable ECDSA signature scheme as in Ethereum \cite{ETH_yellow}. 
+This method utilizes the \textsf{SECP-256k1} curve.
+ % as described by Courtois et al. [2014], and is implemented similarly to as described by Gura et al. [2004] on p. 9 of 15, para. 3.
+
+
+%------------------------------------------------
+% \newpage
+\phantomsection
+% \section*{Acknowledgments} % The \section*{} command stops section numbering
+
+% \addcontentsline{toc}{section}{Acknowledgments} % Adds this section to the table of contents
+
+
+%----------------------------------------------------------------------------------------
+%	REFERENCE LIST
+%----------------------------------------------------------------------------------------
+\phantomsection
+\bibliographystyle{unsrt}
+\bibliography{reference}
+
+
+\newpage
+\appendix
+
+\section{Checklist for porting EVM contract to Conflux}
+
+The Ethereum contract is also a valid Conflux contract. So Ethereum contracts can be ported to Conflux easily and have almost same execution results. But notice that Conflux may have different behavior in the following points:
+\begin{itemize}
+	\item {\bf Gas used and refund:} Conflux requires less gas in SSTORE operation but no longer refunds resetting storage and contract destruction. 
+	\item {\bf Gas fee refund:} Conflux will refund at most 1/4 of gas limit. So try to provide an accurate estimation for gas limit before signing transactions. 
+	\item {\bf Contract address:} Conflux uses a different way to compute address for normal account from public key and compute contract address in contract creation. (See equation~(\ref{eq:account-address}) and (\ref{eq:new-address}) for details.) The contract developers usually don't need to handle this difference. 
+	\item {\bf Contract address conflict:} If the contract address has existed before contract creation, Conflux will abort the contract creation. This is different with the behavior in Ethereum. 
+	\item {\bf Collateral for storage:} Conflux requires collateral for storage. Please make sure there is enough balance for storage collateral. 
+
+\end{itemize}
+
+% \newpage
+\section{Difference between Ethereum and {\name}}
+\begin{center}
+	\begin{tabu}{l X X l}%[htbp]
+		% \caption{Difference between Ethereum and {\name}}
+		% \smallskip
+		% \begin{tabularx}{\textwidth}{lXXl}
+			\toprule
+			 &  
+			\textbf{Ethereum} & \textbf{{\name}} &  \\
+			\midrule
+			\multicolumn{4}{l}{(Virtual Machine and transaction execution)}\\
+			\hline
+			Address	type & indistinguishable for all accounts  
+			& distinct prefixes for normal (non-contract) account, \emph{Solidity} contracts, and reserved contracts (a.k.a. ``precomipled contracts'')  & \cref{subsec:accounts} \\
+			\hline
+			Transaction field	& --	& added {\bf chainID}, {\bf storageLimit} and {\bf epochHeight}	& \cref{sec:tx} 
+			\\
+			% \hline
+			% Block field & {\bf nonce} has $64$ bits & {\bf nonce} has $256$ bits & \cref{sec:block}\\
+			% & {\bf number} records number of all ancestor blocks  & {\bf height} records number of ancestor blocks on the pivot chain &\\
+			% & {\bf stateRoot} etc. commit to the state after executing the latest block & {\bf deferredStateRoot} etc. commit to the state of deferred execution &\\
+			% & --  & added {\bf blame}, {\bf adaptiveWeight} &
+			% \\
+			\hline
+			Gas consumption and refunding & all unused gas is refundable & at most a quarter of {\bf gasLimit} & \cref{subsec:gas_and_pay} \\
+			\cline{2-4}			
+			& full gas fee charged if execution fails on any exception 
+			& no gas fee when exception is not caused by the sender  &  \cref{subsubsec:preprocessing} \\
+			\hline
+			Cost of storage & one-off gas fee &  gas fee + collateral & \cref{subsec:storage consumption}  \\
+			\cline{2-4}			
+			% Fee schedule ($\hyperlink{SSTORE}{\op{SSTORE}}$)
+			& $\hyperlink{SSTORE}{\op{SSTORE}}$ costs $5000$ or $20000$ gas depending on the effect of executing this instruction, may cause a refund of $15000$ gas for clearing a storage value 
+			& $\hyperlink{SSTORE}{\op{SSTORE}}$ costs \hyperlink{G__sset}{$G_{sset}$}$=5000$ gas and every \sunitsize storage costs \sunitprice for collateral (locked until the storage is overwritten or released)   
+			& \cref{sec:collateral}\\
+			\hline
+			Transaction validation & 
+			{any invalid transaction leads to the whole block being invalid} & 
+			{invalid transactions are skipped, while other transactions in the same block can still be valid} & \cref{sec:txorder}\smallskip\\
+			\cline{2-4}
+			& {a transaction is invalid if sender's balance cannot afford the up-front payment for transferred value and gas fee (indeed the whole block will be invalid)} & {the transaction is valid if it satisfies all other assertions, but the execution fails immediately because of insufficient balance for the up-front payment (sender's nonce is increased and gas fee is charged)}	& \cref{sec:tx validate} \\\cline{2-4}
+			% \hline
+			& sender must pay transaction fee from his own balance (sender's balance cannot be zero)	& a sponsor may pay for the cost of calling a smart contract (sender's balance can be zero)	& \cref{sec:sponsor} \\
+			\cline{2-4}
+			& validity of a transaction cannot depend on current time or height & a transaction is only valid in a specified window of epochs & \cref{sec:tx} \\
+			\cline{2-4}
+			& no check on recipient's address & recipient address must have a valid type (i.e. normal account, Solidity contract, or reserved contract)  & \cref{subsec:accounts} \\
+			\hline
+			Contract creation & the address of contract created by $\hyperlink{CREATE}{\op{CREATE}}$ does not depend on the initialization code  &  the address of contract created by both $\hyperlink{CREATE}{\op{CREATE}}$ and $\hyperlink{CREATE2}{\op{CREATE2}}$ depends on the initialization code &  \cref{eq:new-address} \\
+			\cline{2-4} & 
+			$\hyperlink{CREATE}{\op{CREATE}}$ costs $G_{create}=32000$, regardless initilization code length	
+			& $\hyperlink{CREATE}{\op{CREATE}}$ costs the same as $\hyperlink{CREATE2}{\op{CREATE2}}$  & \cref{eq:gas_cost} \\
+			\cline{2-4}
+			& the maximum size of the byte-code is 24756 bytes & The maximum size of the byte-code is 49152 bytes & section~\ref{sec:creation}\\
+			\cline{2-4}
+			& on address conflict, reset contract but inherit the balance &  
+			on address conflict, abort the contract creation   
+			& \cref{sec:creation}  \smallskip\\
+			\hline
+			Contract destruction & only by $\hyperlink{SUICIDE}{\op{SUICIDE}}$ & 
+			destruction may effect on request of the contract's administrator
+			(via the AdminControl contract) & \cref{sec:admin}\\
+			% \hline
+			% 	&	&	& \\
+			% \hline
+			% 	&	&	& \\
+			\midrule
+			Internal Contract & -- & cannot be invoked by system operation, i.e. via $\op{CALLCODE}$ or $\op{DELEGATECALL}$  
+			& \cref{sec:internal} \smallskip\\
+			% \hline
+			% Fee schedule (internal contracts) & -- & AdminContral: $5000$   & \cref{sec:internal} \\
+			% &  & StakingContral: $10000$   &   \\
+			% &  & SponsorContral: $10000$ for {\tt set\char`_sponsor\char`_for\char`_gas/collateral()}, $5000$ for each member update in {\tt add/remove\char`_privilege()} &  \\
+			% \midrule
+			% \multicolumn{4}{l}{(Instruction Set)}\\
+			\hline
+			$\hyperlink{BLOCKHASH}{\op{BLOCKHASH}}$ 	&  get the hash of one of the 256 most recent complete blocks	& get the hash of the last block, return zero if querying other blocks	& \cref{app:instruction-set}\\
+			\hline
+			$\hyperlink{CHAINID}{\op{CHAINID}}$ 	& EIP-1344	&  get the {\name} chain ID ($503$)	&  \cref{app:instruction-set}\\
+			% \hline
+			% $\hyperlink{BEGINSUB}{\op{BEGINSUB}}$ 	& OpCode = 0x5c (EIP-2315)	& OpCode = 0xb2 	& \cref{app:instruction-set}\\
+			% \hline
+			% $\hyperlink{JUMPSUB}{\op{JUMPSUB}}$ 		& OpCode = 0x5d (EIP-2315)	& OpCode = 0xb3	& \cref{app:instruction-set}\\
+			% \hline
+			% $\hyperlink{RETURNSUB}{\op{RETURNSUB}}$ 	& OpCode = 0x5e (EIP-2315)	& OpCode = 0xb7	& \cref{app:instruction-set}\\
+			% \midrule
+			% \multicolumn{4}{l}{(Implemented in Ethereum code but not included in Ethereum yellowpaper)}\\
+			% \hline
+			% $\hyperlink{SELFBALANCE}{\op{SELFBALANCE}}$ 	&  EIP-1884	& push the balance of the currently executing account to the stack.	& \cref{app:instruction-set}\\	
+			\bottomrule
+		% \end{tabularx}
+		% \begin{tablenotes}
+		% 	\item[$\ast$] Slightly better security than confirmation with $6$ successive blocks in Bitcoin.
+
+		% 	% \item[$\ast\ast$] It is possible that the fast confirmation rule is never satisfied for a predetermined risk tolerance,{}
+		% 	% in which case the block can only be confirmed with the Slow Confirmation Rule.
+		% \end{tablenotes}
+	\end{tabu}
+\end{center}
+
+% \newpage
+\section{Fee Schedule}\label{app:fees}
+
+The fee schedule $G$ is a tuple of $35$ scalar values corresponding to the relative costs, in gas, of a number of abstract operations that a transaction may effect.
+
+\begin{center}
+	\begin{tabu}{l r l}
+		\toprule
+		Name & Value & Description* \\
+		\midrule
+		$G_{zero}$ & 0 & Nothing paid for operations of the set {\small $W_{zero}$}. \\
+		$G_{base}$ & 2 & Amount of gas to pay for operations of the set {\small $W_{base}$}. \\
+		$G_{verylow}$ & 3 & Amount of gas to pay for operations of the set {\small $W_{verylow}$}. \\
+		$G_{\mathrm{low}}$ & 5 & Amount of gas to pay for operations of the set {\small $W_{\mathrm{low}}$}. \\
+		$G_{mid}$ & 8 & Amount of gas to pay for operations of the set {\small $W_{mid}$}. \\
+		$G_{\mathrm{high}}$ & 10 & Amount of gas to pay for operations of the set {\small $W_{\mathrm{high}}$}. \\
+		$G_{extcode}$ & 700 & Amount of gas to pay for an $\op{EXTCODESIZE}$ operation. \\
+		$G_{extcodehash}$ & 400 & Amount of gas to pay for an $\op{EXTCODEHASH}$ operation. \\
+		$G_{balance}$ & 400 & Amount of gas to pay for a {\small BALANCE} operation. \\
+		$G_{sload}$ & 200 & Paid for a $\op{SLOAD}$ operation. \\
+		$G_{jumpdest}$ & 1 & Paid for a $\op{JUMPDEST}$ operation. \\
+		\linkdest{G__sset}{}$G_{sset}$ & 5000 & Paid for an $\op{SSTORE}$ operation. \\
+		\linkdest{R__selfdestruct}{}$R_{suicide}$ & 24000 & Refund given (added into refund counter) for self-destructing an account. \\
+		\linkdest{G__selfdestruct}{}$G_{suicide}$ & 5000 & Amount of gas to pay for a $\op{SUICIDE}$ operation. \\
+		$G_{create}$ & 32000 & Paid for a $\op{CREATE}$ operation. \\
+		\linkdest{G__codedeposit}{}$G_{codedeposit}$ & 200 & Paid per byte for a $\op{CREATE}$ operation to succeed in placing code into state. \\
+		$G_{call}$ & 700 & Paid for a $\op{CALL}$ operation. \\
+		$G_{callvalue}$ & 9000 & Paid for a non-zero value transfer as part of the $\op{CALL}$ operation. \\
+		$G_{callstipend}$ & 2300 & A stipend for the called contract subtracted from $G_{callvalue}$ for a non-zero value transfer. \\
+		\linkdest{G__newaccount}{}$G_{newaccount}$ & 25000 & Paid for a $\op{CALL}$ or $\op{SUICIDE}$ operation which creates an account. \\
+		$G_{exp}$ & 10 & Partial payment for an $\op{EXP}$ operation. \\
+		$G_{expbyte}$ & 50 & Partial payment when multiplied by $\lceil\log_{256}(exponent)\rceil$ for the $\op{EXP}$ operation. \\
+		$G_{memory}$ & 3 & Paid for every additional word when expanding memory. \\
+		\linkdest{G__txcreate}{}$G_\text{txcreate}$ & 32000 & Paid by all contract-creating transactions after the {\textit{Homestead} transition}.\\
+		\linkdest{G__txdatazero}{}$G_{txdatazero}$ & 4 & Paid for every zero byte of data or code for a transaction. \\
+		\linkdest{G__txdatanonzero}{}$G_{txdatanonzero}$ & 68 & Paid for every non-zero byte of data or code for a transaction. \\
+		\linkdest{G__transaction}{}$G_{transaction}$ & 21000 & Paid for every transaction. \\
+		$G_{\mathrm{log}}$ & 375 & Partial payment for a $\op{LOG}$ operation. \\
+		$G_{\mathrm{logdata}}$ & 8 & Paid for each byte in a $\op{LOG}$ operation's data. \\
+		$G_{\mathrm{logtopic}}$ & 375 & Paid for each topic of a $\op{LOG}$ operation. \\
+		$G_{sha3}$ & 30 & Paid for each $\op{SHA3}$ operation. \\
+		$G_{sha3word}$ & 6 & Paid for each word (rounded up) for input data to a $\op{SHA3}$ operation. \\
+		$G_{copy}$ & 3 & Partial payment for $\op{*COPY}$ operations, multiplied by words copied, rounded up. \\
+		$G_{blockhash}$ & 20 & Payment for $\op{BLOCKHASH}$ operation. \\
+		$G_{quaddivisor}$ & 20 & The quadratic coefficient of the input sizes of the exponentiation-over-modulo precompiled\\
+		&&contract. \\
+		\bottomrule
+	\end{tabu}
+\end{center}
+
+\newpage
+
+\section{Contract destruction}\label{sec:contract_destruct}
+
+The contract destruction function $\Psi(\st,A)$ updates the world state $\st$ and substate $A$ and outputs $(\st',A')$. Formally, function $\Psi$ is defined as follows.
+
+\begin{align}
+	\st^*  &\eqdef \st \qquad \mbox{ except:}\\
+		\st^*[I_a]_o &\eqdef \st[I_a]_o + \left|\st[I_a]_{\bf c}\right|\times \collateralperbyte \\
+		\st^*[a]_b&\eqdef\st[a]_b+\st[I_a]_p[{\sf gas}]_b
+		\qquad\text{where $a  \eqdef \st[I_a]_p[{\sf gas}]_a$}\\ 
+	\notag \\ 
+	\st'  &\eqdef \st^* \qquad \mbox{ except:}\\
+	\st'[r] &\equiv \begin{cases}
+		\varnothing &\text{if}\ \st^*[r] = \varnothing\ \wedge\ \st^*[I_{a}]_{b} = 0\\
+		\begin{array}{l}
+			(\st^*[r]_{n}, \st^*[r]_{b} + \st^*[I_{a}]_{b}, \\
+			\quad\st^*[r]_{\mathbf{s}}, \st^*[r]_{c})
+		\end{array} & \text{if}\ r \neq I_{a}\\
+		(\st^*[r]_{n}, 0, \st^*[r]_{\mathbf{s}}, \st^*[r]_{c}) & \text{otherwise}
+	\end{cases}\\
+	\st'[I_{a}]_{b} &\eqdef 0 \\
+		\mbox{where: } &\\ 
+		 r &\eqdef \mst_{\mathbf{s}}[0] \bmod 2^{160} \\
+	\notag \\
+	A' & \eqdef A \\
+	\mbox{except:} & \\ 
+	A'_{\mathbf{s}} &\eqdef A_{\mathbf{s}} \cup \{I_a\}
+\end{align}
+
+\input{internal_contract_spec}
+
+\newpage
+\input{instructions}
+
+\newpage
+\input{mp_eval_hash}
+
+%----------------------------------------------------------------------------------------
+
+\end{document}

@@ -1,0 +1,251 @@
+% !TEX root = ./tech-specification.tex
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\newversion{
+\subsection{Checkpoint}
+\label{sec:checkpoint}
+
+{\name} implements a checkpoint mechanism to tailor the ever-growing blockchain history data.
+At a high level, every $\eragap$ epochs form an \emph{era}\footnote{In geologic time scale, \emph{eons} are divided into \emph{eras}, which are in turn divided into \emph{periods}, \emph{epochs} and \emph{ages}.} and a \emph{checkpoint} is made when the era genesis block becomes stable. 
+Thereafter, full nodes can safely discard the content of old blocks.
+ % as described in Section~\ref{sec:truncate}.
+% \todo{ckimpl}{We may not have the following rule currently.}
+% blocks in a old era but outside the corresponding checkpoint will be discarded and hence cannot affect future consensus decisions. 
+% Thus, once a new checkpoint is made, the full nodes can safely reject unchecked old-era blocks and discard the contents of old blocks (it is suggested but not forced to store the headers of old blocks as a legitimate proof of the current state).
+
+
+\subsubsection{Era and Era Genesis}
+
+	Formally, eras in {\name} are partitioned with respect to the height of pivot blocks. 
+	Every $\eragap$ height corresponds to one era,
+	and in particular the pivot block of height $\eragap\cdot N$ is called the \emph{era genesis block of Era $N$}. 
+	For example, the genesis block, which is the only block at height $0$, 
+	is the era genesis block of Era $0$ (i.e. the first era);
+	the pivot block at height $\eragap$ is the era genesis block of Era $1$  (i.e. the second era). 
+	Furthermore, an era genesis will eventually be finalized and become a \emph{stable era genesis}, which is irreversible in any case.
+
+	% \subsubsection{Stable Era Genesis}
+	% // This is what we called forced confirmation in informal discussion.
+
+	The stable era geneses are recursively defined as below:
+	\begin{enumerate}[]
+		\item The genesis block is the first stable era genesis.
+
+		\item An era genesis block $\gblock$ becomes a stable era genesis if it satisfies the following:
+		% According to the timer chain, the first era genesis block $\gblock$ satisfying the following becomes the next stable era genesis:
+		\begin{itemize}[nosep]
+			\item $\gblock$ is in the subtree of the last stable era genesis;
+
+			\item the subtree of $\gblock$ contains $\pbeta$ \emph{consecutive} timer blocks ended by $\block$, 
+			i.e. $\exists \block$ such that $\block,\parentf_{timer}(\block),\dots,\parentf_{timer}^{(\pbetam)}(\block)$ are all in the subtree of $\gblock$;
+
+			\item there are $\pbeta$ \emph{consecutive} timer blocks in the future of $\block$ (these blocks are not necessarily within the subtree of $\gblock$).
+		\end{itemize}
+
+		\item Era genesis blocks preceding a stable era genesis are also stable.
+	\end{enumerate}
+	 
+
+	Let the latest stable era genesis block of a \tg $\graph$ be denoted by $\mathsf{StableEraGenesis}(\graph)$.
+	%
+	The GHAST rule, including weight adaption and parent selection (as specified in Section~\ref{subsec:GHAST} and \ref{subsec:GHAST parent}), are applied within the subtree of $\mathsf{StableEraGenesis}(\graph)$. 
+	The anti-cone penalty, as defined in Section~\ref{subsec:anticone}, is also subject to blocks within the subtree of $\mathsf{StableEraGenesis}(\graph)$, 
+	though such restriction makes no essential difference according to  current anti-cone parameters.
+
+
+
+
+\subsubsection{Truncation of Consensus \tg}\label{sec:truncate}
+	
+	In a \tg $\graph$, the latest stable era genesis $\mathsf{StableEraGenesis}(\graph)$ is indeed a checkpoint that can be treated as the ``new genesis block'' thereafter, 
+	since the consensus rules only apply to blocks within the subtree of $\mathsf{StableEraGenesis}(\graph)$.
+	 % and blocks in $\past\left(\mathsf{StableEraGenesis}(\graph)\right)$ cannot be reordered and the total order of transactions is irreversible up to $\mathsf{StableEraGenesis}(\graph)$.
+	Therefore, the bodies of blocks in $\past\left(\mathsf{StableEraGenesis}(\graph)\right)$ are no longer needed for future world-states and can be safely discarded from every full node's memory.
+	However, the headers of those blocks in $\past\left(\mathsf{StableEraGenesis}(\graph)\right)$ are still needed for validation of references from future blocks (blocks outside the future set $\future\left(\mathsf{StableEraGenesis}(\graph);\graph\right)$ may reference blocks in $\past\left(\mathsf{StableEraGenesis}(\graph)\right)$). 
+
+	For convenience we let $\block'$ and $\block''$ denote the latest two stable era geneses as follows:
+	\begin{align*}
+		\block' &\eqdef \mathsf{StableEraGenesis}(\graph)\\
+		\block'' &\eqdef \mathsf{StableEraGenesis}(\past(\block'))
+	\end{align*}
+
+	Blocks missing one stable era genesis, i.e. the blocks in $\future(\block'';\graph)\backslash\future(\block';\graph)$, can be referenced by a new block in $\graph$ but will not affect consensus decision.
+	Blocks missing two stable era geneses, i.e. the blocks outside $\future(\block'';\graph)$, cannot be referenced.
+	% 
+	More specifically, when adding a new block $\block$ into the \tg $\graph$, the validity of $\block$ is examined as follows:
+	\begin{enumerate}
+		\item If $\block \notin \future(\block'';\graph)$, then $\block$ is discarded.
+
+	    \item If $\block\in \future(\block'';\graph)\backslash\future(\block';\graph)$, 
+	    then $\block$ is partially valid.
+	    That is, the block $\block$ has zero weight in consensus decision and should not be referenced, but the transactions in $\block_\txs$ are still valid.
+
+	    \item If $\block\in  \future(\block';\graph)$ but
+	     % its parent is outside the subtree of $\block''$, i.e. 
+	    $\parent{\block} \notin  \mathsf{SubTree}(\block'';\graph)$,
+	    then $\block$ is also partially valid.
+	  
+
+	    \item Otherwise follow the rules in Section~\ref{sec:pvalid header}.
+	\end{enumerate}
+}
+
+\subsection{Finalization}
+
+In this part we discuss when a block or a transaction in {\name} is considered irreversible, or ``finalized''.
+This is crucial for off-chain users to decide when to confirm a transaction or a state.
+
+Like every other PoW consensus system, the risk that an adversary succeeds in reverting the blockchain history decreases over time but never goes to zero.
+That is, there is always a positive probability, no matter how tiny it is, that an adversary generates a branch with higher accumulated weight than the one generated by honest parties.
+This is a nature of PoW consensus but not one weakness, because:
+1) a sufficiently small probability is usually considered equivalent to zero in practice;
+2) that tiny probability can be made even smaller than the probability that an adversary breaks the public-key cryptosystem or finds a collision of the hash reference, and hence not the bottleneck of security.
+Therefore, in order to decide the concrete finalization rule, 
+a user must specify how much risk he can tolerate as well as his (perhaps subjective) assumption about several system parameters.
+
+
+In what follows we elaborate the finalization of a block.
+A transaction $\tx$ is finalized if the first block $\block'$ where $\tx$ is \textbf{executed} becomes finalized.
+This is a sufficient but sometimes not necessary condition\footnote{The finalization of a transaction may be much faster. For example,  a simple transaction $\tx$ may be safely confirmed before the blocks containing $\tx$ being finalized, 
+if the execution of $\tx$ is indifferent of the agreement of pivot chain, i.e. no conflicting or dependent transactions of $\tx$ included in competing blocks.}.
+Note that ``the first block including $\tx$ becomes finalized'' is insufficient, since {\name} allows invalid transactions.
+
+Consider the block $\block'$ in a \tg and suppose that $\block'$ belongs to the epoch of a pivot block $\block$.
+Then the finalization of $\block'$ reduces to the finalization of $\block$ on the pivot chain.
+The user can decide whether $\block$ is finalized as follows:
+\begin{enumerate}%[nosep]
+	\item Estimate or make assumptions about following system parameters:
+	\begin{itemize}[nosep]
+	 	\item \textbf{Block Generation Rate:} Let $q\eqdef\lambda_a/\lambda_h$ where $\lambda_h$ denotes the combined block generation rate of honest nodes and $\lambda_a$ denotes the block generation rate of attacker. 
+	 	The user needs to make an assumption of the attacker's power by setting an upper bound for $q$.
+
+	 	\item \textbf{Network Synchronization:} If at time $t$, an honest node broadcasts a block via the gossip network, then by time $t + d$ all honest nodes receive this block (the nodes not receiving by time $t+d$ will be counted as adversary). 
+	 	\newversion{According to our experiment in a globally distributed testing environment, we set $d$ equal to 10 seconds.}
+	\end{itemize} 
+
+	\item Make sure that all the pivot blocks preceding $\block$ have been finalized.
+
+	\item Make sure that block $\block$ stays on the pivot chain since $2d$ time ago.
+
+	\item For $q\le 0.2$, compute the confirmation risk $r_1$ according to the \textbf{Fast Confirmation Rule}. 
+	\begin{itemize}[nosep]
+		\item The fast confirmation rule assumes that the GHAST weight adaption is not triggered under the subtree of $\parent{\block}$ during the generation of $8000$  blocks ($\approx 1.1$ hours) since the creation of $\parent{\block}$.
+		% in the next $\approx 1.1$ hours every block $\block'$ under the subtree of $\block$ has normal weight, 
+	%% i.e. $\forall \block'$ such that $\block\in\chain(\block')$, there is $\weight(\block')=\block'_d$. 
+
+		\item Let $r_2$ denote the risk that an attacker breaks the above assumption.
+	\end{itemize}
+	
+	
+	\item For $q< 1$, compute the confirmation risk $r_3$ according to the \textbf{Slow Confirmation Rule}.
+
+	\item The confirmation risk for $\block$ is bounded as $\risk(\block)\le \min\set{r_1+r_2,r_3}$. 
+\end{enumerate}
+
+
+\subsubsection{Fast/Slow Confirmation Rules}
+
+Since evaluating $\risk(\block)$ may be costly, 
+we provide the following simple (but not tight) formulas for risk estimation. 
+These estimations are conservative and hence result in a longer confirmation time. 
+Users, especially those who are also developers, are encouraged to make more accurate estimation and design sophisticated strategies to achieve a better balance between confirmation time and security. 
+
+
+For the estimation of confirmation risk, we introduce the following values with respect to the current local \tg $\graph$ and any block $\ablock\in\graph$.
+
+\begin{itemize}[nosep]
+	\item $c_0$: the total weight of all blocks locally observable in $\graph$;
+	\item $c_1$: the total weight of received blocks in the past $2d$ time (in local clock); 
+	\item $\mathbf{d}$ : the largest target difficulty in the last one day (in local clock);
+
+	\item $w_1(\ablock)$: the total weight of blocks under the subtree rooted at $\ablock$ in $\graph$, i.e. $w_1(\ablock)\eqdef \sum_{\ablock'\in \graph: \ablock\in\chain(\ablock')} \weight(\ablock')$;
+	\item $w_2(\ablock)$: the maximum weight of subtrees rooted at blocks in $\sible(\ablock)$, i.e. 
+	$w_2(\ablock) \eqdef \max_{\ablock'\in \sible(\ablock)} \set{w_1(\ablock')}$ \\
+	(here malicious blocks can be excluded for better performance,
+	while failing to exclude malicious blocks would result in a correct but more conservative (less accurate) estimation for the upper bound of confirmation risk);
+
+	\item $w_3(\ablock)$: the total weight of all the blocks in $\past(\ablock)$,  i.e. $w_3(\ablock)\eqdef \sum_{\ablock'\in \past(\ablock)} \weight(\ablock')$.
+\end{itemize}
+
+ Then we let $n$ be the estimation of $\block$'s advantage over its siblings, and $m$ denote the total (equivalent) number of blocks competing with $\block$, 
+ where $n$ and $m$ are formally defined as below:
+		\begin{align}
+			\label{def:nm}
+			n\eqdef \lceil(w_1(\block)-w_2(\block)-c_1)/\mathbf{d}\rceil,
+			\;\qquad\;
+			m\eqdef\lfloor(c_0-w_3(\parent{\block)})/\mathbf{d}\rfloor
+		\end{align}
+
+If $n$ approaches $m$ quickly then it must be the case that most of the mining power are concentrating under the subtree of $\block$,
+in which case the block $\block$ can be finalized using the Fast Confirmation Rule.
+However, it is possible that the Fast Confirmation Rule is never satisfied for a predetermined risk tolerance in case the convergence of mining power is not that timely.
+Then the confirmation of $\block$ has to rely on the Slow Confirmation Rule,
+which takes time but will eventually come true as long as the majority of mining power is honest.
+
+\begin{center}
+	\begin{threeparttable}
+		\caption{The confirmation risk lookup table for Fast Confirmation Rule.}
+		\smallskip
+		\begin{tabular}{l|ccc}
+			\toprule
+			Risk tolerance $\backslash$  Adversary power &  
+			$q\le 0.1$ (i.e. $9.1\%$ adversary) & $q\le 0.2$ (i.e. $16.7\%$ adversary) \\
+			\midrule
+			$\risk(\block)<10^{-4}$ & $m-n\le \min\{0.85m-12,4400\}$\tnote{$\ast$} & $m-n\le \min\{0.75m-22,2250\}$ \\
+			$\risk(\block)<10^{-6}$ & $m-n\le \min\{0.80m-12,3800\}$ & $m-n\le \min\{0.70m-22,1500\}$ \\
+			$\risk(\block)<10^{-8}$ & $m-n\le \min\{0.75m-12,3200\}$  & $m-n\le \min\{0.65m-22,750\}$ \\
+			\bottomrule
+		\end{tabular}
+		\begin{tablenotes}
+			\item[$\ast$] Slightly better security than confirmation with $6$ successive blocks in Bitcoin.
+
+			% \item[$\ast\ast$] It is possible that the fast confirmation rule is never satisfied for a predetermined risk tolerance,
+			% in which case the block can only be confirmed with the Slow Confirmation Rule.
+		\end{tablenotes}
+	\end{threeparttable}
+\end{center}
+
+\begin{center}	
+	\begin{threeparttable}
+		\caption{The confirmation risk lookup table for Slow Confirmation Rule.}			
+		\begin{tabular}{l|ccc}
+			\toprule
+			Risk tolerance $\backslash$ Adversary power &  $q\le 0.25$ (i.e. $20\%$ adversary) & $q\le 0.5$ (i.e. $33.3\%$ adversary)&  \\
+			\midrule
+			$\risk(\block)<10^{-4}$ & $m-n\le 0.6m-5700$\tnote{$\dagger$} & $m-n\le 0.35m-10900$ \\
+			$\risk(\block)<10^{-6}$& $m-n\le 0.6m-7200$ & $m-n\le 0.35m-13600$ \\
+			$\risk(\block)<10^{-8}$ & $m-n\le 0.6m-8700$ & $m-n\le 0.35m-16200$ \\
+			\bottomrule
+		\end{tabular}
+		\begin{tablenotes}
+			\item[$\dagger$] Security equivalent to confirmation with $13\sim 14$ successive blocks in Bitcoin.
+		\end{tablenotes}
+	\end{threeparttable}
+\end{center}	
+
+
+\paragraph{Safety of Fast Confirmation Rule.}
+
+Now we upper bound the risk $r_2$ that
+% a heavy block (with weight $\heavywvalue$ times of usual) is added to the subtree of $\block$ 
+% within $8000$ successive blocks since the generation of $\parent{\block}$.
+the GHAST weight adaption is triggered within $8000$ successive blocks since the generation of $\parent{\block}$.
+
+Let $h$ be the height of the latest stable era genesis block in the current \tg $\graph$. 
+Let $\block_i$ denote the block at height $h+i$ on $\chain(\block)$. 
+Let $\psi$ be an arbitrary positive integer (e.g. $\psi=50$).
+% 
+For integer $j\in\N$, let $m'$ and $m_j,n_j$ be defined as follows: 
+\begin{align}
+	m' &\eqdef \lfloor (c_0-w_3(\parent{\block}))/\mathbf{d}\rfloor\\
+	n_j &\eqdef \lceil(w_1(\block_{(j+1)\cdot \psi})-\max\nolimits_{i\in(j\cdot \psi,(j+1)\cdot \psi]}w_2(\block_i)-c_1)/\mathbf{d}\rceil-m'\\ 
+	m_j &\eqdef \lfloor(c_0-w_3(\block_{j\cdot \psi}))/\mathbf{d}\rfloor\;
+\end{align}
+
+Let $j_{max}$ be the largest integer satisfying $\mathsf{TimerDis}(\graph,\past(\block_{j_{max}\cdot \psi}))\ge 140$. 
+For $q\le 0.2$, the risk $r_2$ is bounded by 
+%
+\begin{align}
+	10^{-7}+\sum_{j=0}^{j_{max}} 10^{(m_j/3-n_j)/700+5.3}
+\end{align}

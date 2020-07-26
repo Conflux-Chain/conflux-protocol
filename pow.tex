@@ -1,0 +1,163 @@
+% !TEX root=./tech-specification.tex
+
+\section{Proof of Work}
+\label{sec:pow}
+
+
+
+% \subsection{Proof of Work Function}
+
+\oldversion{In the Pontus version, {\name} tentatively applies a twisted tripple Keccack as the proof of work function $\pow$.
+It will be updated in the next stage of {\name} mainnet launch.
+
+More specifically, the function $\pow$ is defined on block headers as follows:
+\begin{align}
+	\pow\left( \head \right) \eqdef 
+	\kec\big(\kec\left(\kec\left(\rlp( \head_{-n} )\right)\circ \head_n\right) 
+	\oplus \kec\left(\rlp( \head_{-n})\right)
+	% \rlp(\head_{-n})[0\dots 255]
+	\big)
+\end{align}
+}
+
+{\name} applies the \emph{Multi-point Ethash} function $\mpethash$
+as the Proof-of-Work function $\pow$.
+$\mpethash$ is a twisted version of \textsf{Ethash} function with additional evaulation of a polynomial on multiple points.
+The detailed specification of this function is in Appendix~\ref{app:mp_eval_hash}.
+
+The $\mpethash$ function is defined as:
+\begin{equation}\label{eq:mpethash}
+	\mpethash(\head)
+	\eqdef \mpethash\left(\kec\left(\rlp( \head_{-n} )\right), \head_{n},\dataset\right) 
+	\eqdef 
+	\set{\compressedmix, \kec\left(\seedhash \circ \compressedmix \circ \mpmix \right)}
+\end{equation}
+where $\dataset$ denotes the dataset derived from $\head$ as in Appendix~\ref{app:dataset} and $\head_{-n}$ denotes the header excluding the {\bf mixHash} and {\bf nonce} fields,
+i.e. $\head \equiv \head_{-n} \circ \head_x \circ \head_n$ since {\bf mixHash} and {\bf nonce} are indeed the last two fields in the structure of block header,
+and the fields of $\head_{-n}$ are \rlp-serialized according to their order in Section~\ref{sec:block}. 
+
+The output of $\mpethash$ consists of an array with the compressed mix $\compressedmix$ as its first item, 
+and the Keccak-256 hash of the concatenation of the seed hash $\seedhash\in \B_{512}$, the compressed mix $\compressedmix\in \B_{256}$,
+and the compressed multi-point mix $\mpmix\in\B_{32}$ as the second item.
+See Appendix~\ref{appsec:pow} for more details.
+
+The first output item of $\mpethash$ is used as the Proof-of-Work function $\pow$, 
+and the second output item is realized as the mix-hash $\head_x$:
+\begin{align}\label{eq:pow}
+	% \mpethash(\head)
+	% &\eqdef \mpethash\left(\kec\left(\rlp( \head_{-n} )\right), \head_{n},\dataset\right) 
+	% \eqdef 
+	% \set{\compressedmix, \kec\left(\seedhash \circ \compressedmix \circ \mpmix \right)}\\
+	\pow(\head) 
+	&\eqdef \mpethash\left(\kec\left(\rlp( \head_{-n} )\right), \head_{n},\dataset\right)[1] 
+	= \kec\left(\seedhash \circ \compressedmix \circ \mpmix\right)\\
+	\head_x 
+	&\eqdef \mpethash\left(\kec\left(\rlp( \head_{-n} )\right), \head_{n},\dataset\right)[0] 
+	= \compressedmix \label{eq:mixhash}
+\end{align}
+
+
+
+
+% \subsection{The PoW Puzzle [new name?]}
+
+% \lipsum[10-12] % Dummy text
+
+\subsection{Proof-of-Work Quality}
+\label{subsec:quality}
+
+The \emph{proof-of-work quality} (a.k.a. \emph{PoW quality} or simply \emph{quality}) of a block refers to the expected amount of work spent in finding such a block.
+Given a block $\block$ with header $\head(\block)$ and 
+the $256$-bit scalar $\offset(\head) \eqdef \left[\head_n(\block)[1\dots127]\right]_2\times 2^{128} \in \N_{256}$ which denotes the offset of proof-of-work validation,
+the quality of $\block$ essentially represents the expected number of random trials to find a block $\block'$ with header $\head'$ satisfying that $\pow(\head')$ is in between of $\offset(\head)$ and $\pow(\head)$.
+
+More specifically, the block $\block$ with header $\head(\block)$ has quality
+\begin{align}
+	\quality(\block)\eqdef 
+	\quality(\head) \eqdef
+	\begin{cases}
+		\left\lfloor2^{256}/\left(\pow(\head) - \offset(\head) +1 \right) \right\rfloor 
+		& \mbox{if $\pow(\head) > \offset(\head)$}\\
+		\left\lfloor2^{256}/\left(2^{256}+\pow(\head) - \offset(\head) +1 \right) \right\rfloor 
+		& \mbox{if $\pow(\head) < \offset(\head)$}\\
+		2^{256}-1 &  \mbox{if $\pow(\head) = \offset(\head)$}
+	\end{cases}
+\end{align}
+
+
+\subsection{Difficulty Adjustment}
+\label{sec:difficulty}
+
+
+The difficulty is adjusted according to the block generation rate in the past.
+More specifically,
+we estimate the current computing power of all miners from the number of blocks in the last $\difficultyadjustperiod$ epochs and the average timestamps of blocks in the beginning and ending epochs,
+and then set the target difficulty for the next $\difficultyadjustperiod$ epochs such that the expected block generation rate should be roughly one block per $\blocktime$ seconds.
+
+Formally,
+for $0\le j\le \difficultyadjustperiod$,
+the target difficulty of a block at height $j$ is set to $\mathbf{d}_0\eqdef {\startdifficulty=\startdifficultyline}$;
+for any positive integer $i\ge 1$,
+the target difficulty of blocks at height $j\in [\difficultyadjustperiod i+1,\difficultyadjustperiod i+\difficultyadjustperiod]$ is set to $\mathbf{d}_i \in\N_{256}$ such that
+
+\newversion{
+	\begin{align}
+		\mathbf{d}_i \eqdef 
+		\begin{cases}
+			\lfloor \mathbf{d}_{i-1} \times \diffup \rfloor & \text{if $\mathbf{d}'_i> \mathbf{d}_{i-1} \times \diffup$}\\
+			\lceil \mathbf{d}_{i-1} \times \diffdown \rceil & \text{if $\mindifficulty\le \mathbf{d}'_i< \mathbf{d}_{i-1} \times \diffdown$}\\
+			\mindifficulty & \text{if $\mathbf{d}'_i < \mindifficulty$}\\
+			\mathbf{d}'_{i} & \text{otherwise ($\mathbf{d}_{i-1} \times \diffdown \le \mathbf{d}'_i \le \mathbf{d}_{i-1} \times \diffup$)}
+		\end{cases}
+	\end{align}
+	where $\mathbf{d}'_i\in\N_{256}$ is the estimation of ideal target difficulty defined as follows
+	\begin{align}
+		% \mathbf{d}'_i\eqdef \mathbf{d}_{i-1} \times \blocktime \times {\sum_{j=1}^{\difficultyadjustperiod}|\epoch_{\difficultyadjustperiod i+j}|}/
+		% {\left(\frac{\sum_{\block'\in\epoch_{\difficultyadjustperiod i}} \block'_{\head_s}}{|\epoch_{\difficultyadjustperiod i}|} - \frac{\sum_{\block'\in\epoch_{\difficultyadjustperiod(i-1)}} \block'_{\head_s}}{|\epoch_{\difficultyadjustperiod(i-1)}|} \right)}
+		\mathbf{d}'_i\eqdef \mathbf{d}_{i-1} \times \blocktimeunix \times 
+		\left({\sum_{j=\difficultyadjustperiod (i-1)+1}^{\difficultyadjustperiod i}|\epoch_{j}|} -1\right)/
+		{\left( \head\left(\block^{(\difficultyadjustperiod i)}\right)_{s} - \min_{\difficultyadjustperiod (i-1)\le j< \difficultyadjustperiod i \;\land\; \head\left(\block^{\left(j\right)}\right)_{s}\ne 0}\set{ \head\left(\block^{\left(j\right)}\right)_{s} } \right)}
+	\end{align}
+	where for every $k\in\N$, $\epoch_k$ denotes the set of \emph{fully valid} blocks in the $k$-th epoch and $\block^{(k)}$ denotes the pivot block in $\epoch_k$.
+	In the above formula the total number of blocks in last $\difficultyadjustperiod$ epochs is decreased by $1$, which leads to an unbiased estimation of block generation rate.
+}
+
+Note that a single block $\block$ may not have a global view.
+Indeed, the best it could do is to compute the target difficulty $\mathbf{d}_i$ from its local view of blocks in $\past(\block)$.
+In particular, a block $\block$ at height $h\eqdef \head\left(\block\right)_h$ should have target difficulty
+\begin{align}
+	\head\left(\block\right)_d\eqdef \begin{cases}
+		\mathbf{d}_0 & h= 0\\
+		\mathbf{d}_{\left\lfloor \frac{ h-1}{\difficultyadjustperiod} \right\rfloor} & \mbox{$h>0$, $\mathbf{d}_{\left\lfloor \frac{ h-1}{\difficultyadjustperiod} \right\rfloor}$ is  calculated with respect to $\past(\block)$}
+	\end{cases} 
+\end{align}
+
+\paragraph{Epoch difficulty.}
+As soon as all nodes agree on the pivot block $\block^{(k)}$ at the $k$-th epoch $\epoch_k$,
+we can uniquely define the target difficulty of $\epoch_k$ as the target difficulty of $\block^{(k)}$.
+Formally, 
+\begin{align}
+	\mathbf{d}_{\epoch_k}\eqdef \head\left( \block^{(k)} \right)_d
+\end{align}
+where $ \head\left( \block^{(k)} \right)_d$ is the {\bf difficulty} field in $\block^{(k)}$'s header and it equals to $\mathbf{d}_{\left\lfloor \frac{k-1}{\difficultyadjustperiod} \right\rfloor}$ derived from the past view of $\block^{(k)}$.
+
+
+% \paragraph{Threshold condition.}
+% 	We say that a block $\block$ fulfills the threshold condition of difficulty adjustment if $\mathbf{d}\eqdef\block_{\head_d}$ and $\mathbf{d}'\eqdef\parent{\block}_{\head_d}$ satisfy the following:
+% 	\begin{align}
+% 		\begin{cases}
+% 			\mathbf{d}'\times\diffdown \le \mathbf{d} \le \mathbf{d}'\times \diffup & \text{if $h\eqdef \head\left(\block\right)_h$ is a height for difficulty adjustment, i.e.~$h> \difficultyadjustperiod$ and $\difficultyadjustperiod \;|\; (h-1)$}\\
+% 			\mathbf{d} = \mathbf{d}' & \text{otherwise}
+% 		\end{cases}
+% 	\end{align}
+
+
+% \subsection{Definition of Work}
+
+% \lipsum[16-17] % Dummy text
+
+
+
+
+
+

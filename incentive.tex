@@ -1,0 +1,269 @@
+% !TEX root=./tech-specification.tex
+
+\section{Incentive Mechanism}
+\label{sec:incentive}
+
+\name miners get paid by \name coins from two sources: the newly minted \name coins as block award,
+and the fees paid by transaction senders.
+In this section we specify the mechanism design for incentivizing \name miners. 
+\newversion{The adaptive weight introduced by the GHAST rule only affects the distribution of the first part of block award.}
+
+
+
+
+\subsection{Base Block Award}
+\label{subsec:baseaward}
+The amount of coins issued to miners in every block is set in accordance to a global parameter which follows the mining schedule.
+ % as stated in Section~\ref{sec:mining schedule}.
+We refer to the global parameter as the \emph{base block award} or simply \emph{base award}, and denote it by $\baseaward$. 
+
+
+
+	The base block award starts at $\baseaward(\gblock) = \initialblockreward$ \coinsign per block and it decreases by $\decaybypercent\%$ 
+	every $\decayperiodinblock$ blocks
+	(i.e. $\decayperiodinday$ days in expectation)
+	for $\decayendinblock$ blocks (i.e. roughly $\halfendinyear$ years).
+	Eventually the annual inflation rate of mining issuance is below $\targetinflationpercent$ percent.
+	
+	For every pivot block $\block$, the base award is defined as follows:
+	\begin{align}
+		\baseaward(\block)\eqdef
+		\begin{cases}
+			\left\lfloor\initialblockreward \times 10^6 \times \decayfactor^{\lfloor \left|\past(\block)\right|/\decayperiodinblock \rfloor}\right\rfloor\times 10^{12} & \mbox{if $ \left|\past(\block)\right| < \decayendinblock$} \\
+			\eventualblockreward \times 10^{18} & \mbox{if $ \left|\past(\block)\right| \ge \decayendinblock$}
+		\end{cases}
+	\end{align}
+
+	For every non-pivot block $\block$,
+	the base award $\baseaward(\block)$ of $\block$ 
+	equals to the base award of the pivot block of the epoch that $\block$ belongs to,
+	i.e. 
+	\begin{align*}
+		\baseaward(\block)\eqdef \baseaward(\pivot{\block})
+	\end{align*}
+
+	Based on $\baseaward(\block)$, 
+	\name defines the the actual block award issued to the author of block $\block$ with  adjustments as described in the rest of Section~\ref{subsec:baseaward}.
+
+
+
+\subsubsection{Anti-cone Penalty}
+\label{subsec:anticone}
+
+For every block $\block$, we recall that a block $\block'$ is in the anti-cone of $\block$ if there is no directed path between $\block'$ and $\block$, which means the chronological order of these two blocks is not reflected by the underlying \tg.
+For every given \tg $\graph$, let $\anticone(\block;\graph)$ denote the set of all anti-cone blocks of $\block\in\graph$ that appear no later than $\anticonecountepoch$ epochs after\footnote{If $\block$ is not on the pivot chain in $\graph$, then $\anticone(\block;\graph)$ also contains blocks appearing in earlier epochs but not referenced by $\block$.} the epoch where $\block$ resides in.
+When the \tg $\graph$ is clear from context, we write $\anticone(\block)$ instead of $\anticone(\block;\graph)$ for short. 
+Formally,
+\begin{align}
+	\anticone(\block)\eqdef \anticone(\block;\graph) \eqdef  \set{\block' \in \graph \;\big|\; \block\notin\past(\block') \land \block'\notin\past(\block)  \land \head\left(\pivot{\block'}\right)_h\le \head\left(\pivot{\block}\right)_h+10 }   
+\end{align}
+In other words, let $\block^{10}$ be the pivot block at height $\head(\block^{10})_h=\head\left(\pivot{\block}\right)_h+10$,
+then 
+\begin{align}
+	\anticone(\block)\eqdef \anticone(\block;\graph) \eqdef \past(\block^{10})\backslash\left( \past(\block)\union \future(\block;\graph) \union \set{\block} \right)
+\end{align}
+
+The \emph{anti-cone penalty factor} of $\block$ is defined as
+\begin{align}
+	\af(\block) \eqdef \max\set{0, 1-\left(\frac{ \weight(\anticone(\block))/\mathbf{d}_{\epoch(\block)}
+	% \max\set{\block_d,\mathbf{d}_{\epoch(\block)}} 
+	}{\gamma}\right)^2}
+\end{align}
+where $\gamma\eqdef {\anticoneconstant}$ is a fixed constant and 
+\newversion{$\weight(\anticone(\block)) \eqdef \sum_{\block'\in\anticone(\block)} \weight(\block')$} refers to the total {adapted weight} of blocks in the anti-cone set $\anticone(\block)$.
+% \newversion{\begin{align}
+%  	 \weight(\anticone(\block))\eqdef \sum_{\block'\in\anticone(\block)} \weight(\block')
+% \end{align} 
+% }
+We remark that $\weight(\anticone(\block))/\mathbf{d}_{\epoch(\block)}$ is the equivalent number of blocks in the anti-cone of $\block$, which corresponds to the portion of computing power in $\block$'s anti-cone.
+% \newversion{
+% 	% As long as the anti-cone of $\block$ is equivalently less than $\gamma$ standard blocks in $\epoch(\block)$, $\block$ is entitled a positive reward.
+% 	In particular, if $\af(\block)=0$, then $\block$ is also treated as partially valid, and hence $\basef(\block)=0$.
+% }
+
+This anti-cone penalty factor is introduced to incentivize inclusion of {referee} blocks as well as fast propagation.
+It also punishes withholding attacks when the blocks are not broadcast immediately. 
+There is no additional award for referencing {referee} blocks, nor discount in block award for  non-pivot blocks.
+
+
+\subsubsection{Base Factor}
+\label{sec:discount}
+
+For convenience, we introduce the \emph{base factor} $\basef(\block)$ to indicate whether the author of $\block$ is eligible to receive any award.
+
+If a block $\block$ in $\epoch_k$ has a lower target difficulty, i.e. $\block_d<\mathbf{d}_{\epoch_k}$,
+then we decide the base award of $\block$ by its 
+block quality $\quality(\block)$:
+it gets normal base award if 
+the block quality $\quality(\block)$ 
+reaches the epoch's target difficulty $\mathbf{d}_{\epoch_k}$, and zero base award $\baseaward(\block)\eqdef 0$ in case the 
+quality $\quality(\block)$ does not meet $\mathbf{d}_{\epoch_k}$.
+Note that the expected base award is effectively the same as setting $\baseaward(\block)\eqdef\frac{\block_d}{\mathbf{d}_{\epoch_k}} \cdot \baseaward(\epoch_k)$.
+
+
+	If a block $\block$ is partially valid, blamed, or has a large anti-cone, then the author of $\block$ must have made some mistake and hence he is not eligible for any award.
+
+
+Thus, the base factor $\basef(\block)$ of block $\block$ is defined as
+\begin{align}\label{eq:basef}
+	\basef(\block)\eqdef \begin{cases}
+		% {\color{red} w} & {\color{red} \mbox{$\block$ is a valid heavy block}}\\
+		1 & \mbox{$\block$ is valid and $\af(\block)>0$, \newversion{not blamed, and satisfies the target difficulty of $\epoch_k$ (which requires  }}\\
+		~ & \mbox{\newversion{$\quality(\block)\ge \heavywvalue \cdot \mathbf{d}_{\epoch_k}$ if $\mathrm{Adaptive}(\block)=\true$ or $\quality(\block)\ge \mathbf{d}_{\epoch_k}$ if $\mathrm{Adaptive}(\block)=\false$)}}\\
+		0 & \mbox{otherwise ($\block$ is partially valid, \newversion{$\af(\block)=0$, blamed}, or $\quality(\block)$ does not satisfy the requirement)} 
+	\end{cases}
+\end{align}
+
+\subsubsection{Actual Block Award to Miners}
+	\label{subsubsec:actualblockaward}
+	Taking all the discounts and adjustments into account,
+	the block award assigned to the author of $\block$ is defined as follows:
+	\begin{align}
+		\award(\block) \eqdef \left\lfloor\af(\block)\cdot \basef(\block)
+		% \cdot \wf(\block)
+		\cdot \baseaward(\block)\right\rfloor
+		% =\af(\block)\cdot \basef(\block)
+		% % \cdot \wf(\block)
+		% \cdot \baseaward
+	\end{align}
+
+
+	\noindent{\bf Remark:} 
+	A non-pivot block $\block_1$ may receive a higher block award than the pivot block $\block_2$ 
+	% with $\wf(\block_1)=\wf(\block_2)$
+	in the same epoch,
+	in case $\weight(\anticone(\block_1))<\weight(\anticone(\block_2))$ 
+	and hence $\af(\block_1)>\af(\block_2)$.
+
+
+
+
+	\subsection{Storage Maintenance Reward}
+	\label{subsec:storagefee}
+
+	Miners receive interest generated by collateral for storage, as payment to the cost of occupying storage space in the world-state.
+	More specifically, the CFS interest generated by all blocks in each epoch is redistributed to authors of blocks in the epoch with respect to their actual mining block award.
+	In particular, the CFS interest assigned to the author of block $\block$ is calculated as follows:
+	\begin{align}
+		\storageaward(\block) \eqdef 
+		\left\lfloor \sum_{\block'\in\epf(\block)} \left\lfloor \mathsf{ACFS}(\st(\block'))
+		\times \frac{\interest}{\blockinyear}\right\rfloor
+		\times \frac{\award(\block)}{\sum_{\block'\in\epf(\block)} \award(\block') } \right\rfloor
+	\end{align}
+	where $\st(\block')$ denotes the world-state at the beginning of the execution of transactions in block $\block'$,
+	$\mathsf{ACFS}(\st(\block'))$ is the total CFS in $\block'$, 
+	$\interest$ is the annual interest rate and $\blockinyear$ is the (expected) number of blocks in one year,
+	and hence the value in parenthesis is the CFS interest generated by $\block'$;
+	and the distribution of CFS interest in $\epf(\block)$ is proportional to actual block awards $\award(\block)$ as defined in Section~\ref{subsubsec:actualblockaward}. 
+
+	Specially, if the total block reward for the whole epoch is zero, (i.e., $\sum_{\block'\in\epf(\block)} \award(\block')=0$), the storage maintenance reward will not be distributed. 
+
+
+
+
+\subsection{Transaction Fee Reward}
+
+If a transaction $\tx$ is first executed successfully in the $i$-th epoch $\epoch_i$, then 
+the transaction fee (for purchasing the consumed gas) of $\tx$ is divided between all blocks that 
+% reside in $\epoch_i$ and include $\tx$.
+\emph{properly include }$\tx$.
+Here ``a block $\block$ properly includes a transaction $\tx$'' means that:
+% a) $\forall \block'\in\past(\block), \tx\notin\block'_{\txs}$;
+%  and  
+% b)
+% and ``$\block$ includes $\tx$ not too late'' means that 
+$\tx\in \block$ and $\block$ belongs to $\epoch_i$ (the epoch that $\tx$ is executed for the first time).
+
+
+The transaction fee is distributed proportionally to the binary base factors of blocks as defined in (\ref{eq:basef}). 
+% in Section~\ref{sec:discount}.
+% That is, a block with a fully valid header and actual quality above the epoch target difficulty gets weight $1$ %({\color{red}or $w$ depending on whether it is a heavy block})
+% , and other blocks with partially valid headers or lower-than-target actual quality gets weight $0$.
+% 
+In particular, if the transaction $\tx$ is exclusively packed in blocks with zero base factor, the transaction fee is burnt although the transaction will still be processed. 
+
+\oldversion{The total transaction fee reward of a block $\block$ is the sum of its portion of fees from every transaction in $\block_\txs$.}
+\newversion{After execution of block $\block$, we can get its receipt list $\mathbf{R}'(\block)$ with the same length as transaction list $\block_\txs$. So each transaction $\tx\in \block_\txs$ can be paired with its corresponding receipt $R$. The actually charged transaction fee is recorded in $R_f$.}
+Recalling that $\basef(\block)$ is a binary function respecting to the validity of $\block$,
+ the transaction fee assigned to $\block$ is defined as follows:
+\begin{align}\label{eq:txfee}
+	\feeaward(\block)\eqdef
+		 \sum_{\text{$(\tx,R):$ $\block$ properly includes $\tx$}}
+		 \left\lfloor
+	\frac{R_f \cdot\basef(\block)}{\sum_{\block': \text{$\block'$ properly includes $\tx$}} \basef(\block') }
+		 \right\rfloor
+\end{align}
+
+When there are multiple blocks properly include the transaction $\tx$, there may be a remainder for transaction fee of $\tx$. Formally, the remainder $r$ equals to
+
+\begin{align}
+	r\eqdef R_f - \sum_{\block': \text{$\block'$ properly includes $\tx$}} \basef(\block') \cdot \left\lfloor\frac{R_f \cdot\basef(\block)}{\sum_{\block': \text{$\block'$ properly includes $\tx$}} \basef(\block') }\right\rfloor.
+\end{align}
+
+In case the remainder is non-zero, the blocks with $r$ minimum block hash $\kec(\rlp(\block_\head))$ will receive one more $\unit$. So the transaction fee can be exactly distributed to miners. 
+
+
+\subsubsection{Why not distributing transaction fees among all blocks in that epoch?}
+	One may suggest that the transaction fee of $\tx$ should be shared by all valid blocks in that epoch, rather than among blocks that properly include $\tx$ as described in (\ref{eq:txfee}).
+	In what follows we show that our current implementation has several advantages:
+	\begin{itemize}
+		\item {\bf For security and incentive compatibility:} 
+		the first priority of the incentive mechanism design is to guarantee that every rational participant will behave honestly, i.e. they should respect the consensus protocol and reference all the blocks they have observed.
+		However, the mechanism of sharing transaction fee may bring incentives that prevent the author of a block referencing other blocks.
+
+		For example, if there is a transaction $\tx$ with a considerable fee, miners may be willing to monopolize that fee even if suffering some punishment caused by a larger anti-cone.
+		In particular, the author who packs $\tx$ into a new block $\block$ would prefer not to share the transaction fee of $\tx$ with others, especially when this fee is much higher than the anti-cone punishment caused by ignoring other blocks that are eligible to share the fee of $\tx$.
+
+		If the fee of $\tx$ is to be shared with all other blocks in the same epoch, the author of $\block$ would \emph{be hostile to all other unreferenced blocks}, and hence they get incentives to ignore those blocks by shirking all responsibility to network latency. 
+		Therefore, by manipulating transaction fees and causing such intentional ignorance, an attacker is able to effectively launch a partition attack.
+
+		If the fee of $\tx$ is to be shared only among blocks including $\tx$, the author of $\block$ may still want to ignore other blocks with $\tx$. 
+		However, the difference is that the author of $\block$ would not be hostile to blocks without $\tx$, since he does not have to share the transaction fee of $\tx$ with them.
+		As a result, the author of $\block$ will be open to reference other observed blocks without $\tx$ in $\block$.
+		Furthermore, referencing blocks with $\tx$ in any later epoch is also safe, even if there are new transactions (other than $\tx$) with significant fees.
+		Thus by manipulating transaction fees the attacker could merely cause a slightly longer latency instead of a significant partition.
+
+		In conclusion, sharing transaction fee of $\tx$ only among blocks including $\tx$ provides a stronger incentive of referencing other blocks honestly.
+
+		\item {\bf For efficiency:} 
+		the current design better discourages ``free riders'' who only mines on empty blocks and hence saves the effort of  maintaining storage states and executing transactions.
+		Since by producing empty blocks, those miners would lose the transaction fees completely, rather than receiving an average revenue of total fees in that epoch.
+
+		\item {\bf For fairness:}
+		the current design indeed implements a tailored version of Shapley value, which is a fair distribution of total gains well-known in cooperative game theory.
+	\end{itemize}
+
+
+
+
+\subsection{Final Reward to Miners}
+
+The final mining reward of a block $\block$ will be added to the block author's account as specified in the {\bf author} field $\head(\block)_a$.
+Since the anti-cone of $\block$ may contain blocks up to $\anticonecountepoch$ epochs after the $\epoch$ of $\block$,
+the reward assigned to $\block$ effects at the end of $\minerfreeze$ epochs after the $\epoch$ of $\block$, where the balance of $\block_a$ is updated.
+ % Due to \deferblk-blocks deferred execution, this reward becomes available at $\minerfreeze+\deferblk$ epochs after the epoch of $\block$. 
+For example, if $\block$ appears in $\epoch_i$, then the account $\block_a$ receives the mining reward at the end of $\epoch_{i+\minerfreeze}$. 
+% Such a receive will be executed at the end of $\epoch_{i+\minerfreezeexec}$.
+The total mining reward of $\block$ is calculated as follows:
+
+\oldversion{
+	\begin{align}
+		\reward(\block)\eqdef \af(\block)\cdot \award(\block)  + \feeaward(\block) = \af(\block)\cdot\basef(\block)\cdot\wf(\block)\cdot\award(\epoch_\block) + \feeaward(\block)
+	\end{align}
+}
+\newversion{
+	\begin{align}
+	\reward(\block)\eqdef  \award(\block) + \storageaward(\block) + \feeaward(\block) 
+	% = \af(\block)\cdot\basef(\block)\cdot\wf(\block)\cdot\award(\epoch_\block) + \storageaward(\block) + \feeaward(\block)
+\end{align}
+}
+
+In particular, note that $\af(\block)=0$ implies $\basef(\block)=0$ and $\award(\block)=\storageaward(\block)=\feeaward(\block)=0$.
+Thus  
+$\reward(\block)=0$ as long as $\block$ has a large anti-cone such that $\af(\block)=0$.
+
+
+
+
+
+

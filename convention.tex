@@ -1,0 +1,162 @@
+% !TEX root = ./tech-specification.tex
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Conventions}
+
+Throughout this document, we use the following conventional notations:  
+\begin{itemize}[nosep]
+	\item $\B$ denotes the set of bit values, i.e. $\B\eqdef \zo$. 
+	$\Byte$ denotes the set of byte values, i.e. $\Byte\eqdef \set{0,\dots,255}$.
+
+	\item $\N$ denotes the set of non-negative integers.
+
+
+	\item For every $n\in \N$, we use $\B_n$ to denote a binary string of $n$ bits, and $\Byte_n$ for a string of $n$ bytes. In particular, $\Byte=\B_8$.
+	
+	\begin{itemize}
+		\item Furthermore, we denote by $\B^*$ and $\Byte^*$ the set of binary or byte strings of arbitrary length, i.e. $\B^*\eqdef \cup_{i\in\N} \B_i$ and $\Byte^*\eqdef \cup_{i\in\N} \Byte_i$. 
+	
+		\item For convenience, we let $\N_{n}\eqdef\set{0,1,\dots, 2^n-1}$  be the set of non-negative integers smaller than $2^n$.
+
+		\item The empty string (or the empty series) is denoted by $\emptystring$, which is distinguished from the empty set denoted by $\varnothing$.
+	\end{itemize}
+
+	\item Numbers are in decimal base by default. Binary numbers are indicated with square brackets with subscripts, e.g. $[0100]_2$ is the $4$-bit binary representation of $4$. The subscript \textsf{ch} represents the character representation of bit string, e.g. $[{\sf ab}]_{\sf ch}=[6162]_{16}=[0110000101100010]_2$.
+
+	\item When interpreting 256-bit binary values from $\N_{256}$ as integers, the representation is big-endian.
+
+	\item When a 256-bit machine datum in $\B_{256}$ is converted to and from a 160-bit address or hash in $\B_{160}$, the rightwards (low-order for BE) 160 bits (20 bytes) are used and the leftmost 96 bits (12 bytes) are discarded or filled with zeros, thus the integer values (when the bytes are interpreted as big-endian) are equivalent.
+
+	\item Tuples are typically denoted with bold upper case letters such as $\mathbf{A}$. 
+	For frequently used tuples, we denote by $\tx$ for a {\name} transaction, $\block$ for a {\name} block, and $\head$ for the header of a block. 
+	\begin{itemize}[nosep]
+		\item Subscripts can be added to refer to an individual component in the tuple, e.g. $\tx_n$ denotes the nonce of the transaction $\tx$.
+		The type of referred components is the same as the type of subscript, e.g. $\block_{\head}$ denotes the header of a block $\block$, where the header itself is another tuple of elements. 
+		For succinctness we also write $\head(\block)\eqdef \block_{\head}$ and sometimes simply $\head$ when there is no ambiguity.
+		\newversion{
+			Also for succinctness, we sometimes use $\block$ and $\head$ interchangeably if there is no ambiguity, e.g. $\block_d$ stands for the target difficulty of block $\block$, which is formally denoted as $\head(\block)_d$ or $\block_{\head_d}$.
+		}
+
+		\item In case we are considering many transactions or blocks, we add superscripts to refer to a specific one of them, e.g. $\tx^1$ denotes the first transaction in a sequence.
+	\end{itemize}
+
+	\item \newversion{The \tg structure of blocks is typically denoted by $\graph$, which is a graph consisting of blocks represented by vertices and parent/referee relations represented by two kinds of directed edges.}	   
+
+	\item Scalars and fixed-length sequences of elements (arrays, strings, and vectors) are denoted with normal lower case letters, e.g. $n$ is used to denote a transaction nonce. 
+	Those with a special meaning may be denoted with Greek letters.
+
+	\item Sequences of potentially arbitrary number of elements are typically denoted with bold lower case letters, e.g. $\mathbf{o}$ is used to denote the byte sequence generated as the output data of a message call.
+
+	\item The highly structured state values are typically denoted with bold lower case Greek letters, e.g. $\st$ (and its variants) is used to denote the world-state, and $\mst$ for machine state.
+	% \begin{itemize}[nosep]
+		
+	% \end{itemize}
+
+	\item Square brackets are used to index subsequences of a sequence, with index starting from $0$, e.g. $\mst_{\mathbf{s}}[0]$ refers to the first item on the machine's stack and $\mst_{\mathbf{m}}[0\dots 31]$ denotes the first $32$ items of the machine's memory.
+	\begin{itemize}[nosep]
+		\item Some objects like the global state $\st$ is interpreted as a set of key/value pairs.
+		Thus the square bracket after $\st$ refers to corresponding value of the given key (i.e., account address). 
+		\item Square brackets use negative index to access an array from the end like Python, e.g. $\mst_{\mathbf{s}}[-1]$ refers the last item on the machine's stack. 
+	\end{itemize}
+
+
+	\item Functions are typically denoted by upper case letters and subscripts are used for specialized variants, e.g. $C$ is the general cost function and $C_{\op{CALL}}$ is the cost function for the $\op{CALL}$ operation.
+	Specific functions operating on states are denoted by upper case calligraphic letters, e.g. $\transition$ denotes the {\name} global state transition function.
+	\begin{itemize}[nosep]
+		\item For every function $F$ defined on $D$, we let $F^*$ denote the function on range $D^*$ that element-wise applies $F$ on its input items, i.e. $F^*\big( \left(x_1, x_2, \dots\right) \big) \eqdef \left( F(x_1), F(x_2),\dots \right)$. 
+	\end{itemize}
+
+	\item The superscript of a function with parentheses like $f^{(i)}$ represents call function $f$ for $i$ times recursively. Formally, $f^{(1)}(\cdot)\eqdef f(\cdot)$ and $f^{(i)}(\cdot)\eqdef f^{(i-1)}(f(\cdot))$ for $i\ge 2$.
+	
+	\item The indicator function $\mathbb{I}(\cdot)$ converts a boolean variable to integer. Formally, $\mathbb{I}(\true)=1$ and $\mathbb{I}(\false)=0$.
+
+\end{itemize}  
+
+\smallskip
+
+Frequently used functions:
+\begin{itemize}[nosep]
+	\item $\parentf$: the \emph{parent function}  takes a block $\block$ as input and returns the parent block $\block'$, i.e. $\block'$ is referenced in $\block$ and designated as the parent of $\block$.
+	Formally, $\parentf(\block)\eqdef \block':\kec\left(\rlp(\block')\right)=\head(\block)_{p}$.\footnote{One may argue whether $\parentf$ is well-defined since $\kec$ has collisions. However, as long as the collision cannot be found in practical situations, the function $\parentf$ only need to look up such a $\block'$ from existing blocks and returns $\bot$ if there is none.}
+
+	\item $\chain$: the \emph{chain function} takes a block $\block$ as input and returns the chain from genesis block to block $\block$ following only parent edges. Formally, for genesis block $\gblock$, $\chain(\gblock)\eqdef\gblock$; For other blocks $\block$, $\chain(\block)\eqdef\chain(\parentf(\block))\circ \block$.
+	
+	\item $\sible$: the \emph{sibling function} takes a block $\block$ as input and returns the blocks which have the same parent as $\block$. Formally, $\sible(\block)\eqdef\{\block' \;|\; \parentf(\block')=\parentf(\block) \wedge \block'\neq \block\}$.
+
+	\item $\past$: the \emph{past function}  takes a block $\block$ as input and outputs all blocks in the ``past set of $\block$'', i.e. all blocks that are directly or indirectly referenced by $\block$.
+	The set $\past(\block)$ does not include $\block$, since $\block$ cannot reference itself.
+	
+	\item $\future$: the \emph{future function} takes a \tg $\graph$ and a block $\block\in\graph$ as inputs and outputs all blocks in the  ``future set of $\block$''. Formally, $\future(\block;\graph)\eqdef\{\block' \in \graph \mid \block \in \past(\block')\}$. 
+
+	\item $\epf$: the \emph{epoch function} takes a block $\block$ as input and returns a sequence of all blocks in the epoch of $\block$, sorted as in the \name total order defined in Section~\ref{sec:total order}.
+
+
+	\item \newversion{
+		\linkdest{blockno}{$\blockno$}: the \emph{block number function} takes a \tg $\graph$ and a block $\block$ as inputs and returns the index of $\block$ in the total order of blocks specified by $\graph$, where the index starts from $0$.
+		In particular, for the genesis block $\gblock$ and for every \tg $\graph$ there must be $\blockno(\gblock;\graph)=0$.
+		Note that $\blockno(\block;\graph)$ depends on $\graph$ and it is different from $\past(\block)$ which is fully determined by $\block$.
+		For every $\graph$ and $\block\in\graph$ there must be $\blockno(\block;\graph)\ge \past(\block)$ since all blocks in $\past(\block)$ precede $\block$ in the total order.
+		Furthermore, for $\block,\block'\in\graph$ and $\block\ne\block'$, there must be $\blockno(\block;\graph)\ne\blockno(\block';\graph)$ because distinct blocks cannot have identical index in the total order.
+		When the \tg $\graph$ is clear from context, we may write $\blockno(\block)$ for succinctness.
+	}
+
+
+	\item $\pivotf$: the \emph{pivot function} takes a block $\block$ as input and outputs the pivot block in the epoch of $\block$.
+
+	\item $\senderf$: the \emph{sender function} takes a transaction $\tx$ as input and returns the sender of $\tx$, where in particular the sender is represented by its address. 
+
+	\item \linkdest{rlp}{$\rlp$}: this is the serialization function that encodes an input of arbitrary length into a structured binary data, i.e. a byte array explicitly containing information about the length of the input.
+	For more details see Appendix B in \cite{ETH_yellow}.
+
+	\item $\tolist$: this function takes a key/value set whose keys are integers or bit/byte sequences the values are integers. It outputs a sequence of key/value pairs for the entry with non-zero value in ascending order or lexicographical order of key.
+
+
+	\item $\trie$: the trie function maps an arbitrary-length binary byte array $\mathbf{s}$ into a  $256$-bit commitment that represents the database storing $\mathbf{s}$ in a modified Merkle Patricia tree (trie). 
+
+	\item $\kec$: the Keccak $256$-bit cryptographic (collision-resistant) hash function that maps an arbitrary-length binary byte array to a random-looking binary string in $\B_{256}$.
+	Furthermore, we assume $\kec$ implements a \emph{random oracle}, i.e. finding a random collision of $\kec$ requires in expectation roughly $2^{128}$ attempts and a specific collision requires $2^{256}$.
+	Similarly, $\kec512$ refers to the $512$-bit cryptographic hash function Keccak-512.
+
+	\item $\pow$: this is the proof-of-work function, which takes a block header as input and returns a scalar in $\B_{256}$.
+	
+
+	\item \newversion{$\quality$: this is a measurement of the  proof-of-work quality of a given block,
+	i.e. how unlikely it is to find such a block. 
+	It takes a block or a block header as input and outputs a scalar in $\N_{256}$. 
+	Essentially, a block $\block$ with header $\head=\head(\block)$ has quality 
+ 	$\quality(\block)\eqdef 
+ 	\quality(\head)\eqdef 
+ 	\left\lfloor 2^{256}/\left(\pow(\head) - \left[\head_n[1\dots127]\right]_2\times 2^{128} +1\right) \right\rfloor$ except for a few marginal cases.
+ 	See Section~\ref{subsec:quality} for more details.}
+\end{itemize}
+
+
+\subsection{Value}
+To incentivize the maintenance of the {\name} network and charge users for consumption of resources,
+{\name} has an intrinsic currency called {Conflux Coin} or simply \coin, denoted by \coinsign for short.
+The smallest subdenomination is denoted by \unit,
+in which all values processed in \name are integers.
+One \coin is defined as $10^{18}$ \unit.
+Frequently used subdenominations of {\name} are list as follows:
+\par
+\begin{center}
+\begin{tabular}{cl}
+\toprule
+Multiplier (in \unit) & Name \\
+\midrule
+$10^{0~}$ & \unit \\
+% $10^{6}$ & TBD \\
+$10^{9~}$ & \gunit \\
+$10^{12}$ & \ucoinsign \\
+% $10^{15}$ & TBD \\
+$10^{18}$ & \coin (\coinsign) \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+
+
+
+
+
+

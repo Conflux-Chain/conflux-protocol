@@ -1,0 +1,235 @@
+\section{Internal contracts}\label{sec:internal_contract}
+
+Conflux introduces internal contracts for specific usage. A high-level description for the internal contracts is given in Section~\ref{sec:internal}. 
+%
+Currently, Conflux has three internal contracts with addresses as follows. 
+\begin{align}
+	a_{\sf admin} \eqdef \admincontract \\ 
+	a_{\sf sponsor} \eqdef \sponsorcontract \\
+	a_{\sf stake} \eqdef \stakingcontract 
+\end{align}
+%
+When the recipient's address $r$ is one of the internal contracts, Conflux processes $\execute_{\sf internal}(\st^*,g,I)$ and returns $\left(\st^{**}, g^{**},  A, \vec{o} \right)$. 
+
+\subsection{Interfaces and gas required}
+
+In execution of internal contracts, the call data $I_\mathbf{d}$ is interpreted as a function call to Solidity interface. Function $V(\st,c,I_\mathbf{d})$ gives the gas used for internal contract execution by called function and parameters.
+$\\$
+
+\begin{tabu}{llll}
+	\hline
+	Address $I_a$ & Solidity interface & Formal parameters & $V(\st,c,I_\mathbf{d})$ \\
+	\hline
+	\multirow{2}{*}{$a_{\sf admin}$} & {\tt \small set\char`_admin(address,address)} & $a_0,a_1\in \B_{160}$ & $G_{sset}$\\\cline{2-4}
+	& {\tt \small destroy(address)} & $a_0\in \B_{160}$ & $G_{sset}$ \\\hline
+	\multirow{4}{*}{$a_{\sf sponsor}$} & {\tt \small set\char`_sponsor\char`_for\char`_gas(address,uint256)}  & $a_0\in \B_{160},n_1\in \N_{256}$ & $G_{sset}$\\\cline{2-4}
+	& {\tt \small set\char`_sponsor\char`_for\char`_collateral(address)}  & $a_0\in \B_{160}$ &  $2\times G_{sset}$\\\cline{2-4}
+	& {\tt \small add\char`_privilege(address[])} & $\mathbf{a}\in \B_{160}^*$ & $|\mathbf{a}|\times G_{sset}$ \\\cline{2-4}
+	& {\tt \small remove\char`_privilege(address[])} & $\mathbf{a}\in \B_{160}^*$ & $|\mathbf{a}|\times G_{sset}$ \\ \hline
+	\multirow{3}{*}{$a_{\sf stake}$} & {\tt \small deposit(uint256)}  & $n_0\in \N_{256}$ & $2\times(|\st[s]_{deposit}|+1)\times G_{sset}$\\\cline{2-4}
+	& {\tt \small withdraw(uint256)}  & $n_0\in \N_{256}$ &  $2\times|\st[s]_{deposit}|\times G_{sset}$\\\cline{2-4}
+	& {\tt \small vote\char`_lock(uint256,uint256)} & $n_0,n_1\in \N_{256}$ & $2\times|1+\tolist(\st[s]_{vote})|\times G_{sset}$ \\\hline
+	\multicolumn{4}{l}{where $\st[s]'_{vote}\text{ is defined by }\st[s]_{vote} \text{ removing all the key }x\text{ with }\st[s]_{vote}[x]=\st[s]_{vote}[x-1]$}
+\end{tabu}
+
+\subsection{Internal contracts exceptions}
+The execution of internal contracts may fail in the following cases 
+\begin{itemize}
+	\item Conflux parses the call data $I_\mathbf{d}$ as solidity function call. In case the call data doesn't match any solidity function interfaces list as follows, or the format is incorrect, the execution fails. 
+	\item The recipient is inconsistent with the code address or internal contract is called by \op{STATICCALL}, i.e., $I_r\neq c$ or $I_w=\bot$. 
+	\item The gas $g$ passed in is not enough for internal contract execution, i.e., $g<V(\st^*,c,I_\mathbf{d})$. 
+	\item The staking vote contract $a_{\sf stake}$ forbids value transfer to prevent misusing, i.e., $I_a= a_{\sf stake}\;\wedge \; I_v\neq 0$. \footnote{User don't need to transfer balance to staking vote contract in staking. The transferred value to staking vote contract will lost. }
+	\item If other exceptions met during the execution, the execution also fails. See the following for details. 
+\end{itemize}
+
+Whenever the execution fails, the return values are set as
+\begin{align}
+	\left(\st^{**}, g^{**},  A, \vec{o} \right)\eqdef (\varnothing,0,A^0,\varnothing)
+\end{align} 
+
+If the execution is successful, the remained gas and return data are set as 
+\begin{align}
+	\left(g^{**}, \vec{o} \right)\eqdef (g-V(\st^*,c,I_\mathbf{d}),\emptystring)
+\end{align}
+
+The resultant world-state $\st^{**}$ and substate $A$ is computed depending on interfaces. 
+
+
+\subsection{Admin Contract}
+
+The admin contract with address $a_{\sf admin}$ gives two interfaces.
+
+\subsubsection{Set administration}
+
+For interface {\tt set\char`_admin(address,address)}, let $a_0,a_1\in \B_{160}$ be the address parameters. 
+	\begin{align}
+		A & \eqdef A^0 \\
+		\st^{**} &\eqdef \st^* \qquad \mbox{except:}\\
+		\st^{**}[a_0]_a &\eqdef
+			a_1 \qquad \text{if } \mathsf{Type}_{a_0} = [1000]_2 \;\wedge\; I_o = \st^*[a_0]_a 
+    \end{align}
+    
+\subsubsection{Destory contract} 
+
+For interface {\tt destroy(address)}, let $a_0\in \B_{160}$ be the address parameters. The execution fails if 
+	\begin{align}
+			\st^*[a_0]_o>0\;\wedge\; 	I_o = \st^*[a_0]_a
+	\end{align}
+	If the execution not fails, 
+	\begin{align}
+		(\st^{**},A) \eqdef \left\{\begin{array}{ll}
+			(\st^*,A^0) & I_o \neq \st^*[a_0]_a \\
+			\Psi(\st^*,A^0) & I_o = \st^*[a_0]_a
+		\end{array}\right.
+	\end{align}
+	where $\Psi$ is defined in section~\ref{sec:contract_destruct}.
+
+\subsection{Sponsorship Contract}
+The sponsorship contract with address $a_{\sf sponsor}$ gives four interfaces.
+
+\subsubsection{Set sponsor for gas}
+
+For interface {\tt set\char`_sponsor\char`_for\char`_gas(address,uint256)}, let $a_0\in \B_{160},n_1\in \N_{256}$ be the address parameters. The execution fails if 
+	\begin{align}
+		& \st^*[a_0]=\emptyset \;\vee\; \mathsf{Type}_{a_0}\neq[1000]_2 \;\vee\; \st^*[a_{\sf sponsor}]_b < 1000\times n_1 \;\vee\; n_1\le \st^*[a_0]_p[{\sf limit}]\le \st^*[a_0]_p[{\sf gas}]_b \notag \\ 
+		& \;\vee\; (\st^*[a_0]_p[{\sf gas}]_a \neq I_s \;\wedge\; \st^*[a_{\sf sponsor}]_b\le \st^*[a_0]_p[{\sf gas}]_b)  
+	\end{align}
+	If the execution not fails, 
+		\begin{align}
+			A & \eqdef A^0 \\
+			\st^{**} &\eqdef \st^* \qquad \mbox{except:}\\
+			\st^{**}[a_{\sf sponsor}]_b &\eqdef 0 \\ 
+			\st^{**}[a_0]_p[{\sf limit}] &\eqdef n_1\\ 
+			\st^{**}[a_0]_p[{\sf gas}]_a &\eqdef a_0\\ 
+			\st^{**}[a_0]_p[{\sf gas}]_b &\eqdef \begin{cases}
+				\st^*[a_{\sf sponsor}]_b + \st^*[a_0]_p[{\sf gas}]_b& p = I_s\\ 
+				\st^*[a_{\sf sponsor}]_b& p \neq I_s
+			\end{cases}\\ 
+			\st^{**}[p]_b &\eqdef \begin{cases}
+				\st^*[p]_b & p = I_s\\ 
+				\st^*[p]_b + \st^*[a_0]_p[{\sf gas}]_b& p \neq I_s
+			\end{cases}\\
+			\mbox{where:}& \\
+			p & \eqdef \st^*[a_0]_p[{\sf gas}]_a
+		\end{align}
+    
+\subsubsection{Set sponsor for collateral}
+
+For interface {\tt set\char`_sponsor\char`_for\char`_collateral(address)}, let $a_0\in \B_{160}$ be the address parameter. The execution fails if 
+	\begin{align}
+		& \st^*[a_0]=\emptyset \;\vee\; \mathsf{Type}_{a_0}\neq[1000]_2 \;\vee\; \st^*[a_{\sf sponsor}]_b = 0  \notag \\ 
+		& \;\vee\; (\st^*[a_0]_p[{\sf col}]_a \neq I_s \;\wedge\; \st^*[a_{\sf sponsor}]_b\le \st^*[a_0]_p[{\sf col}]_b)  
+	\end{align}
+	If the execution not fails, 
+		\begin{align}
+			A & \eqdef A^0 \\
+			\st^{**} &\eqdef \st^* \qquad \mbox{except:}\\
+			\st^{**}[a_{\sf sponsor}]_b &\eqdef 0 \\ 
+			\st^{**}[a_0]_p[{\sf col}]_a &\eqdef a_0\\ 
+			\st^{**}[a_0]_p[{\sf col}]_b &\eqdef \begin{cases}
+				\st^*[a_{\sf sponsor}]_b + \st^*[a_0]_p[{\sf col}]_b& p = I_s\\ 
+				\st^*[a_{\sf sponsor}]_b& p \neq I_s
+			\end{cases}\\ 
+			\st^{**}[p]_b &\eqdef \begin{cases}
+				\st^*[p]_b & p = I_s\\ 
+				\st^*[p]_b + \st^*[a_0]_p[{\sf col}]_b& p \neq I_s
+			\end{cases}\\
+			\mbox{where:}& \\
+			p & \eqdef \st^*[a_0]_p[{\sf col}]_a
+        \end{align}
+        
+\subsubsection{Add addresses to whitelist}
+
+For interface {\tt add\char`_privilege(address[])}, let $\mathbf{a}\in \B_{160}^*$ be the address list parameter. The execution fails if \begin{align}
+		\mathsf{Type}_{I_s}\neq[1000]_2. 
+	\end{align}
+	If the execution not fails,
+	\begin{align}
+		\left(\st^{**}, A\right) &\eqdef \left(\st^{(n)}, A^0\right)\\ 
+		\mbox{where:} &\\
+		n&\eqdef |\mathbf{a}| \\
+		\st^{(0)} &\eqdef \st^* \\ 
+		\forall j \in [n],\; \st^{(j)} &\eqdef \Phi(\st^{(j-1)},a_{\sf sponsor},I_s\cdot {\bf a}[j-1],1,I_i)
+	\end{align}
+	Function $\Phi$ is defined in Section~\ref{sec:storage_maintain}.
+    
+\subsubsection{Remove addresses to whitelist}
+
+For interface {\tt remove\char`_privilege(address[])}, let $\mathbf{a}\in \B_{160}^*$ be the address list parameter. The execution fails if
+ \begin{align}
+		\mathsf{Type}_{I_s}\neq[1000]_2. 
+	\end{align}
+	If the execution not fails, 
+	\begin{align}
+		\left(\st^{**}, A\right) &\eqdef \left(\st^{(n)}, A^0\right)\\ 
+		\mbox{where:} &\\
+		n&\eqdef |\mathbf{a}| \\
+		\st^{(0)} &\eqdef \st^* \\ 
+		\forall j \in [n],\; \st^{(j)} &\eqdef \Phi(\st^{(j-1)},a_{\sf sponsor},I_s\cdot {\bf a}[j-1],0,I_i)
+    \end{align}
+    
+\subsection{Staking vote contract}
+The staking vote contract with address $a_{\sf stake}$ gives three interfaces:
+
+\subsubsection{Staking}
+
+For interface {\tt deposit(uint256)}, let $n_0\in \N_{256}$ be the integer parameter. The execution fails if 
+	\begin{align}
+		n_0 < 10^{18} \;\vee\; \st^*[I_s]_b<n_0
+	\end{align}
+	If the execution not fails, 
+	\begin{align}
+		A & \eqdef A^0 \\
+		\st^{**} &\eqdef \st^* \qquad \mbox{except:}\\
+		\st^{**}[I_s]_b &\eqdef \st^*[I_s]_b - n_0\\ 
+		\st^{**}[I_s]_t &\eqdef \st^*[I_s]_t + n_0\\ 
+		\st^{**}[I_s]_{\bf d} &\eqdef \st^*[I_s]_{\bf d} \cdot (n_0,|I_\mathbf{L}|,\st^*[a_{\sf sponsor}]_{\bf s}[k_1]_v) \\
+		\st^{**}[a_{\sf sponsor}]_{\bf s}[k_2]_v & \eqdef\st^*[a_{\sf sponsor}]_{\bf s}[k_2]_v + n_0 \\
+		\mbox{where:}& \\
+		k_1 & \eqdef [{\sf accumulate\char`_interest\char`_rate}]_{\sf ch} \\
+		k_2 & \eqdef [{\sf total\char`_staking\char`_tokens}]_{\sf ch}
+    \end{align}
+    
+\subsubsection{Lock staking to obtain vote power}
+
+For interface {\tt vote\char`_lock(uint256,uint256)}, let $n_0,n_1\in \N_{256}$ be the integer parameters. The execution fails if 
+	\begin{align}
+		n_1 \le  |I_\mathbf{L}| \;\vee\; \st^*[I_s]_t<n_0
+	\end{align}
+	If the execution not fails, 
+	\begin{align}
+		A & \eqdef A^0 \\
+		\st^{**} &\eqdef \st^* \qquad \mbox{except:}\\
+		\forall x\le |I_\mathbf{L}|, \st^{**}[I_s]_{\bf v}[x] &\eqdef \st^*[I_s]_{\bf v}[|I_\mathbf{L}|+1]\\ 
+		\forall |I_\mathbf{L}|<x\le n_1, \st^{**}[I_s]_{\bf v}[x] &\eqdef \max\{\st^*[I_s]_{\bf v}[x],n_0\}
+    \end{align}
+    
+\subsubsection{Withdraw}
+
+For interface {\tt withdraw(uint256)}, let $n_0 \in \N_{256}$ be the integer parameter. The execution fails if 
+	\begin{align}
+		n_0>\st[I_s]_t - \st[I_s]_{\bf v}[|I_\mathbf{L}|+1]
+	\end{align}
+	If the execution not fails, 
+	\begin{align}
+		A & \eqdef A^0 \\
+		\st^1 &\eqdef \st^* \qquad \mbox{except:}\\
+		\forall x\le |I_\mathbf{L}|, \st^1[I_s]_{\bf v}[x] &\eqdef \st^*[I_s]_{\bf v}[|I_\mathbf{L}|+1]\\ 
+		\st^1[I_s]_t &\eqdef \st^*[I_s]_t - n_0\\ 
+		\forall i < |\st^*[I_s]_{\bf d}|, \st^1[I_s]_{\bf d}[i][{\sf amt}] &\eqdef \st^*[I_s]_{\bf d}[i][{\sf amt}] - z_i \\
+		\st^1[I_s]_b &\eqdef \st^*[I_s]_b + n_0 + q\\
+		\st^1[I_s]_r &\eqdef \st^*[I_s]_r + q\\
+		\st^1[a_{\sf sponsor}]_{\bf s}[k_2]_v & \eqdef\st^*[a_{\sf sponsor}]_{\bf s}[k_2]_v - n_0 \\
+		\st^1[a_{\sf sponsor}]_{\bf s}[k_3]_v & \eqdef\st^*[a_{\sf sponsor}]_{\bf s}[k_3]_v + q \\
+		\st^{**} &\eqdef \st^1 \qquad \mbox{except:}\\
+		\st^{**}[I_s]_{\bf d} &\eqdef \mbox{Remove elements $e$ from $\st^1[I_s]_{\bf d}$ with $e[{\sf amt}]=0$} \\
+		\mbox{where:}& \\
+		y_i & \eqdef \sum_{j=0}^{i-1} \st^*[I_s]_{\bf d}[j][{\sf amt}] \\
+		z_i & \eqdef \max\{0,\min\{n_0-y_i,\st^*[I_s]_{\bf d}[i][{\sf amt}]\}\} \\
+		q & \eqdef \sum_{i=0}^{|\st^*[I_s]_{\bf d}|-1} \left\lfloor \frac{z_i \times \st^*[a_{\sf sponsor}]_{\bf s}[k_1]}{\st^*[I_s]_{\bf d}[i][{\sf accIR}]}\right\rfloor \\
+		k_1 & \eqdef [{\sf accumulate\char`_interest\char`_rate}]_{\sf ch} \\
+		k_2 & \eqdef [{\sf total\char`_staking\char`_tokens}]_{\sf ch} \\ 
+		k_3 & \eqdef [{\sf total\char`_issued\char`_tokens}]_{\sf ch}
+	\end{align}
+
+
