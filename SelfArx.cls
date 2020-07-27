@@ -124,7 +124,7 @@ justification=raggedright]{caption}
 %	TABLEOFCONTENTS SET-UP
 %----------------------------------------------------------------------
 \newlength{\tocsep} 
-\setlength\tocsep{1.5pc} % Sets the indentation of the sections in the table of contents
+\setlength\tocsep{2pc} % Sets the indentation of the sections in the table of contents
 \setcounter{tocdepth}{3} % Three levels in the table of contents section: sections, subsections and subsubsections
 
 \usepackage{titletoc}
