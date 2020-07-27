@@ -13,11 +13,49 @@ The pivot blocks divided into $\mathbf{L}$ into several epochs.  For $k\ge 1$, t
 
 \subsection{Initial state}
 
-\todo{}{Add initial world state about genensis block setting.}
+The initialization world state $\st^0$ is set as follows. A list $\vec{a}$ with elements $(a,b)$ gives the addresses $a$ and their balance $b$ when the \name blockchain launched.  
+\begin{align}
+	\forall (a,b)\in \vec{a}, \st^0[a]= \account^0 \quad \mbox{except:} \account_b=b 
+\end{align}
+
+In Oceanus, this list contains the following two addresses for faucet. Each address has initialization balance $5\times 10^{33}$ \unit, i.e., 5000 trillion \coinsign.
+%
+\begin{align*}
+	\mathsf{0x1be45681ac6c53d5a40475f7526bac1fe7590fb8} \\
+	\mathsf{0x1e768d12395c8abfdedf7b1aeb0dd1d27d5e2a7f}
+\end{align*}
+
+The \name internal contracts are also initialized.
+%
+\begin{align}
+	\forall a\in \{a_{\sf stake},a_{\sf sponsor},a_{\sf admin}\}, \st^0[a] &\eqdef \account^0 \quad \mbox{except:} \account_n=1 \\
+	\mbox{where:}&\\
+	a_{\sf admin} &\eqdef \admincontract \\ 
+	a_{\sf sponsor} &\eqdef \sponsorcontract \\
+	a_{\sf stake} &\eqdef \stakingcontract
+\end{align}
+
+Besides, the global statistic information will be set as follows:
+
+\begin{align}
+	\st^0[a_{\sf stake}][k_1]_v & \eqdef \blockinyear\times 2^{80} \\ 
+	\st^0[a_{\sf stake}][k_2]_v & \eqdef \blockinyear\times 40000 \\
+	\st^0[a_{\sf stake}][k_3]_v & \eqdef 0 \\
+	\st^0[a_{\sf stake}][k_4]_v & \eqdef 0 \\
+	\st^0[a_{\sf stake}][k_5]_v & \eqdef \sum\nolimits_{(a,b)\in \vec{a}} b \\
+	\mbox{where:}&\\
+	a_{\sf stake} &\eqdef \stakingcontract \\
+	k_1 &\eqdef \sf [accumulate\char`_interest\char`_rate]_{\sf ch} \\ 
+	k_2 &\eqdef \sf [interest\char`_rate]_{\sf ch} \\
+    k_3 &\eqdef \sf [total\char`_staking\char`_tokens]_{\sf ch} \\
+    k_4 &\eqdef \sf [total\char`_storage\char`_tokens]_{\sf ch} \\
+    k_5 &\eqdef \sf [total\char`_issued\char`_tokens]_{\sf ch} 
+\end{align}
+
 
 \subsection{Epoch execution}
 
-The blockchain is executed epoch by epoch. Let $\st_{k-1}$ denote the world state after the execution of epoch $k-1$. The Conflux protocol updates world state from $\st_{k-1}$ to $\st_k$ as follows. Besides updating the world state, the protocol also generates a receipt list $\mathbf{R}_k$ for epoch execution. 
+The blockchain is executed epoch by epoch started with epoch 1. Let $\st_{k-1}$ denote the world state after the execution of epoch $k-1$. The Conflux protocol updates world state from $\st_{k-1}$ to $\st_k$ as follows. Besides updating the world state, the protocol also generates a receipt list $\mathbf{R}_k$ for epoch execution. 
 
 \paragraph{Blocks execution. } First, all the blocks in epoch are executed in sequence by block execution function $\transition_{\sf block}(\st,\block,\mathbf{L}[0..(\tau-1)])=(\st',\mathbf{R}')$, where $\block$ is the block to be executed, $\tau$ is the the index of block $\block$ in $\mathbf{L}$ and $\mathbf{R}'$ is the sequence of transaction receipts. After executing all the blocks, the resultant world-state $\st^*$ becomes the input of the next step and the concatenation of block receipts becomes epoch receipts $\mathbf{R}$. Function $\transition_{\sf block}(\st,\block,\vec{L})$ is defined in section~\ref{sec:block_exec}.
 
