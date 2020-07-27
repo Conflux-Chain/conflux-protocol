@@ -382,8 +382,10 @@ The block header $\head$ is a collection of relevant pieces of information:
 Formally, a block header is defined as 
 %
 \begin{align}
-	\head = (\head_p,\head_h,\head_s,\head_s,\head_a,\head_t,\head_r,\head_e,\head_b,\head_m,\head_d,\head_w,\head_\ell,\head_o,\head_c[0],\cdots,\head_c[-1],\head_n)
+	\head = (\head_p,\head_h,\head_s,\head_s,\head_a,\head_t,\head_r,\head_e,\head_b,\head_m,\head_d,\head_w,\head_\ell,\head_o,\head_c,\head_n)
 \end{align}
+
+Notice that the {\bf mixHash} is not a part of block header in Oceanus. 
 	
 The other part of $\block$ is simply a list of transactions. Therefore the block $\block$ can be represented as follows:
 \begin{align}
@@ -447,7 +449,7 @@ where we recall that $L_{\tx}^*$ and $L_H^*$ refer to element-wise sequence tran
 We assert the types and order of the structure when the $\rlp$ transformation is required:
 %
 \begin{align}
-	L_H(\head) &\equiv \left(\head_p, \head_h, \head_s, \head_a, \head_t,\head_r,\head_e,\head_b, \head_m, \head_d, \head_w,  \head_\ell,  \head_o, \head_x, \head_n  \right)\\
+	L_H(\head) &\equiv \left(\head_p,\head_h,\head_s,\head_s,\head_a,\head_t,\head_r,\head_e,\head_b,\head_m,\head_d,\head_w,\head_\ell,\head_o,\head_c[0],\cdots,\head_c[-1],\head_n\right)\\
 	L_B(\block) &\equiv \left( L_H(\block_\head), L_{\tx}^*(\block_\txs) \right)
 \end{align}
 
@@ -473,8 +475,8 @@ The component types are defined thus:
 	\land \qquad &\head_w\in \B
 	\qquad &\land \qquad &\head_\ell\in \N_{256}	% \qquad \land \qquad \head_g\in \B_{256}
 	\qquad &\land \qquad &\head_{o} \in\left(\B_{256}\right)^{\le \numberofommers}
-	% \qquad &\land \qquad &\head_x\in \Byte_{\le 32}
-	\qquad &\land \qquad &\head_x\in \B_{256}
+	% TODO: The Oceanus doesn't include mix-hash in block header
+	% \qquad &\land \qquad &\head_x\in \B_{256}
 	\qquad &\land \qquad &\head_n\in \B_{256}
 \end{align}
 
@@ -541,7 +543,8 @@ Formally, the header $\head$ is valid if and only if:
 	\land \qquad & \left|{\head_l} -\head\left(\parentf(\block)\right)_{l}\right|< \left\lfloor\frac{\head\left(\parentf(\block)\right)_{l}}{1024}\right\rfloor \qquad
 	\land \qquad {\head_l}\ge \minblockgaslimit \label{eq:blockgas}\\
 	\land \qquad & \text{${\head_d}$ is legitimate according to the difficulty adjusting function}\\
-	\land \qquad & \text{${\head_x}$ is the correct mix-hash (see (\ref{eq:mixhash}) in Section~\ref{sec:pow})}\\
+	% TODO: the Oceanus doesn't have mix-hash in block header. But we haven't decided whether to include it in the final version.
+	% \land \qquad & \text{${\head_x}$ is the correct mix-hash (see (\ref{eq:mixhash}) in Section~\ref{sec:pow})}\\
 	\land \qquad & \quality(\head) \ge {\head_d}\\
 	\land \qquad & \newversion{\text{$\parentf(\block)$ specified by ${\head_p}$ is legitimate according to GHAST rule in $\past(\block)$}}\\
 	\land \qquad & \newversion{\text{${\head_w}$ is legitimate according to the GHAST rule in $\past(\block)$}}\\
