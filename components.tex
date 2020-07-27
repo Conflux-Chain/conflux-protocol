@@ -143,12 +143,22 @@ Conflux encodes each component of each account in format of $(k,v)\in \B^*\times
 
 \paragraph{Storage entry.} The storage entry stores all the storages in $\account_{\bf s}$. Given account $\alpha$ with address $\alpha_{addr}$, for each storage key $s\in \B_{256}$ with $\account_{\bf s}[s]_v\neq 0$, we have 
 \begin{align}
-	&k\eqdef \alpha_{addr}\cdot [{\sf data}]_{\sf ch}\cdot s \\
-	&v\eqdef \left\{ \begin{array}{ll}
+	k&\eqdef \alpha_{addr}\cdot [{\sf data}]_{\sf ch}\cdot s \\
+	v&\eqdef \left\{ \begin{array}{ll}
 		\rlp\left(\account_{\bf s}[s]_v\right) & \alpha_{addr} = \account_{\bf s}[s]_o \\ 
+		\rlp\left(\account_{\bf s}[s]_v\right) & \alpha_{addr} = a_{\sf stake} \;\wedge\; k \in \{k_1,k_2,k_3,k_4,k_5\} \\ 
 		\rlp\left(\account_{\bf s}[s]\right) & \mbox{otherwise}
-	\end{array}\right.
+	\end{array}\right.\\
+	\mbox{where:} &\\
+	a_{\sf stake} &\eqdef \stakingcontract \\
+	k_1 &\eqdef \sf [accumulate\char`_interest\char`_rate]_{\sf ch} \\ 
+	k_2 &\eqdef \sf [interest\char`_rate]_{\sf ch} \\
+    k_3 &\eqdef \sf [total\char`_staking\char`_tokens]_{\sf ch} \\
+    k_4 &\eqdef \sf [total\char`_storage\char`_tokens]_{\sf ch} \\
+    k_5 &\eqdef \sf [total\char`_issued\char`_tokens]_{\sf ch} 
 \end{align}
+
+There are five special storage entries storing some statistic information about \name blockchain, which have no storage owner. 
 
 \paragraph{Storage root entry.} The storage root entry stores the storage layout for account $\account$. 
 \begin{align}
