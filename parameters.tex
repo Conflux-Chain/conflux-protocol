@@ -1,0 +1,33 @@
+\section{Concrete Protocol Implementation}\label{sec:parameters}
+
+Concretely, we set the following parameters for \name.\\ 
+{\color{red} Note that the numbers here are only for the most recent testnet and may change in the future.}
+
+\par
+\begin{center}
+\begin{tabular}{ll}
+\toprule
+Parameter & Value \\
+\midrule
+Block time & $\blocktime$ s \\
+Maximum block size bound & \maxblocksize \\
+Starting coinbase award & $\initialblockreward$ \coinsign \\
+Starting difficulty ($\mathbf{d}_0$) & $\startdifficulty=\startdifficultyline$ \\
+Starting block gas limit & $\startblockgastlimit=\startblockgastlimitline$ \\
+Anti-cone penalty factor ($\gamma$) & $\anticoneconstant$ \\
+Deferred execution & \deferblk epochs\\
+Mining reward freezing time & \minerfreeze\xspace epochs \\
+Snapshot period & \snapshotperiod\xspace epochs \\ 
+AdminControl Contract Address& $\admincontract$ \\
+SponsorControl Contract Address& $\sponsorcontract$ \\
+Staking Contract Address& $\stakingcontract$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+\par
+
+
+In \name we use $\kec$ as the collision-resistant hash function unless otherwise explicitly specified.
+
+For authentication in the current version of \name, we use the same recoverable ECDSA signature scheme as in Ethereum \cite{ETH_yellow}. 
+This method utilizes the \textsf{SECP-256k1} curve.

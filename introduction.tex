@@ -1,0 +1,29 @@
+% !TEX root = ./tech-specification.tex
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\section{Introduction}
+
+%\addcontentsline{toc}{section}{Introduction} % Adds this section to the table of contents
+
+Since the born of Bitcoin, various blockchain projects have demonstrated extraordinary success with the power of consensus among permissionless and trustless parties.
+The most successful blockchain project after Bitcoin is widely considered to be Ethereum, which generalizes the blockchain paradigm from a specialized value-transfer system to a more generalized Turing-complete state machine that allows conceptually all kinds of computation.
+This generalized state machine, known as \emph{Ethereum Virtual Machine} (EVM), makes the Ethereum network essentially a decentralized computing platform 
+where the state advances on input of transactions.
+Sometimes Ethereum is referred to as the ``world computer'' that nobody can shut down, 
+except that its processing power is rather poor and severely bounded by the throughput of underlying consensus.
+
+The consensus throughput of Bitcoin is (in expectation) one block per $10$ minutes, with block size $1$MB (or $2$MB with Segregated Witness (segwit)).
+Bitcoin is set to small block size and low generation rate mainly for security concerns.
+Intuitively, when there is no adversary, the natural probability of forks is proportional to the ratio of  block broadcasting time to block (generation) time,
+since under the longest chain rule honest mining power may keep working on a fork during the propagation of a newly mined block.
+Ethereum applies a tailored version of GHOST rule \cite{GHOST} and smaller block size to achieve a much shorter block time, i.e. roughly $<100$KB per $15$ seconds.
+Inclusive Block Chain Protocol \cite{Inclusive} is a ``block-DAG'' proposal which defines a total order of blocks in a directed acyclic graph (DAG) rather than a chain, with the major advantage over GHOST that all forked blocks contribute to the consensus throughput as well. 
+Another line of scaling techniques trades security and decentralization for scalability by using sharding, sidechains, or other second layer extensions.
+In extreme cases, centralized and somehow permissioned consensus systems are implemented in practice.
+
+
+{\name} is a project which aims at building a high throughput first layer consensus system without any compromises in security and decentralization; a generalized computation platform that securely processes at least thousands of transactions per second which makes the  throughput of consensus is no more a bottleneck.
+The positioning of {\name} is a strong backbone consensus network on which a numerous number of unprecedented applications and extensions can germinate and thrive.
+Technically, we follow a similar idea as \cite{Inclusive} but organize blocks in a \tg, 
+which enables a fast implementation of the {\name} protocol.

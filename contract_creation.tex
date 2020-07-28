@@ -1,0 +1,162 @@
+% !TEX root = ./tech-specification.tex
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\subsection{Contract Creation}
+\label{sec:creation}
+
+A number of intrinsic parameters are used when creating a smart contract account:
+\begin{itemize}[nosep]
+	\item world-state ${\st}$;
+	
+	\item sender $s$;
+
+	\item original sender $o$;
+	
+	\item other recipients in call stack $\vec{t}$;
+	
+	\item storage owner $i$;
+		
+	\item available gas $g$;
+
+	% \item storage limit $\ell$;
+
+	\item gas price $p$;
+
+	\item endowment $v$;
+
+	\item initialization code $\vec{i}$ as an arbitrary length byte array;
+
+	\item the present depth of message-call/contraction-creation stack $e$;
+
+	\item the salt for new account's address $\zeta$,\\
+	where $\zeta = \varnothing$ if the creation was caused by {\hyperlink{create}{$\op{CREATE}$}}, 
+	and $\zeta\in \B_{256}$ if the creation was caused by {\hyperlink{create2}{$\op{CREATE2}$}};
+
+	\item and finally the permission to change the state $w$.
+\end{itemize}
+
+
+We define the contract creation function by $\creation$,
+which evaluates from the above parameters and modifies the state $\st$ to a new state $\st'$, together with the leftover gas $g'$, the accrued substate $A$, the result of creation, and the output $\vec{o}$. 
+\begin{align}
+	\left(\st',g', A, z, \vec{o} \right)\eqdef \creation\left(\st, s, o, \vec{t},i, g, p, v, \vec{i}, e, w \right)
+\end{align}
+
+
+The address $a$ of the account $\account$ newly created by {\hyperlink{create}{$\op{CREATE}$}} is defined as the $4$-bit contract type indicator concatenating the rightmost $156$ bits (i.e. the $100$-th to $255$-th bit) of the Keccak hash of a zero byte, the sender address $s$, the little-endian 32-byte array of its account nonce and the Keccak hash of \cvm code. 
+% 
+For {\hyperlink{create2}{$\op{CREATE2}$}} the rule is slightly different by substituting account nonce with the salt $\zeta$ and changing the leading byte before taking Keccak (following EIP-1014).
+Combining these two cases, 
+the resultant address for the new contract account $\account$ is defined as follows:
+\begin{align}\label{eq:new-address}
+	a= A(s, \st[s]_{n} - 1, \zeta, \vec{i}) \eqdef 
+	\left\{\begin{array}{l l l l l}
+	 	\typecontract \circ \kec\big([\mathrm{00}]_{16} &~\circ~ s &\circ~ \mathrm{LE}_{32}(\st[s]_n-1) &\circ~ \kec(\vec{i}) \big)[100 \dots 255]
+	 	& \text{if}\ \zeta = \varnothing \\
+	 	\typecontract \circ \kec\big([\mathrm{ff}]_{16} &~\circ~ s &\circ~  \zeta   &\circ~ \kec(\vec{i}) \big)[100 \dots 255] 
+		& \text{otherwise}
+	\end{array} \right.
+\end{align}
+where $\mathrm{LE}_{32}(\cdot)$ denotes the function that expands an integer value in $[0,2^{256}-1]$ to a little-endian 32-byte array. 
+%
+Note that we use $\st[s]_n-1$ since it is indeed the sender's nonce at the generation of the respective transaction or VM operation. 
+
+If $\st[a]_c\neq \kec(\emptystring)$, a \emph{Contract Address Conflict} exception is triggered. Function $\creation$ returns $(\varnothing,g,A^0,1)$ immediately. 
+
+Otherwise, the account's nonce is initialized to one, the balance as the value passed by the contract creation transaction,
+the storage and code as for the empty string.
+The sender's balance is reduced by the transferred value (there must be enough balance or the transaction will not be executed).
+Thus the mutated state becomes $\st^*$:
+\begin{align}
+	\st^* & \eqdef \st \qquad{ \text{except:}}\\
+	\st^*[a] &\eqdef \account^0 \quad\text{except:}\; \st^*[a]_n=1 \wedge \st^*[a]_b=v+\st[a]_b \wedge \st^*[a]_a=s\\
+	% \left(a, \account_{state}\right)\\
+	\st^*[s] &\eqdef \begin{cases}
+		\varnothing & \mbox{if $\st[s]=\varnothing$ $\land$ $v=0$}\\
+		\st[s]\quad\mbox{except}:	\st^*[s]_b=\st[s]_b-v	& \mbox{otherwise}
+	\end{cases}
+\end{align}
+where $\account^0$ is the default account specified in~\cref{eq:default_account}. 
+
+The unmentioned components of an account are initialized by default.
+
+Finally the account $\account$ is initialized by \cvm code $\vec{i}$ according to the execution model.
+Code execution may effect several events that are not internal to the execution state:
+the account's storage can be altered, further accounts can be created and further messages calls can be made.
+As such, the code execution function $\execute$ evaluates to a tuple of resultant state $\st^{**}$, available gas remaining $g^{**}$, the accrued substate $A$ and the body code $\vec{o}$.
+\begin{align}
+	\left(\st^{**}, g^{**},  A, \vec{o} \right) \eqdef \execute\left(\st^*, g, I\right)
+\end{align}
+where $I$ consists of the parameters of the execution environment as follows:
+\begin{align}
+	I_a &\eqdef a\\
+	I_o &\eqdef o\\
+	I_i &\eqdef i\\
+	I_p &\eqdef p\\
+	I_\vec{d} &\eqdef \emptystring\\
+	I_\vec{t} & \eqdef \vec{t}\\
+	I_s &\eqdef s\\
+	I_v &\eqdef v\\
+	I_\vec{b} &\eqdef \vec{i}\\
+	I_{\head} & \eqdef \head \\
+	I_\vec{L} & \eqdef \vec{L} \\ 
+	I_e &\eqdef e\\
+	I_w &\eqdef w
+\end{align}
+
+$I_{\vec{d}}$ evaluates to the empty tuple as there is no input data to this call. 
+$I_{\head}$ is the block header of the present block.
+$I_\vec{L}$ is the list of block headers ordered in front of the current block.
+
+Code execution depletes gas, and gas may not go below zero, thus the actual execution may exit before the code has come to a natural halting state.
+In this (and several other) exceptional cases (i.e. $\st^{**}=\varnothing \land \vec{o}=\varnothing$), we say an out-of-gas (OOG) exception has occurred:
+the evaluated state is set to the empty set $\varnothing$, 
+and the entire contract creation should have no effect on the state, effectively leaving it as it was immediately prior to the attempt of the failed creation.
+%
+Function $\creation$ returns $(\varnothing,g^{**},A^0,1)$ immediately. 
+
+
+If the initialization code completes successfully,
+a final storage cost is charged for depositing the code.
+The storage cost $s$ is proportional to the code size of the created contract and it consists of two parts:
+\begin{itemize}
+	\item the code-deposit cost $d$ charged as gas consumption:
+	\begin{align}
+		d \eqdef   |\vec{o}| \times G_{codedeposit}
+	\end{align}
+
+	\item a substate $A^{*}$ will be generated to record the storage occupied by code size. the code size collateral will be charged in transaction post processing and will be locked during the lifetime of the created contract. (Conflux will record the owner of code in world-state and refund the collateral when the contract is destroyed):
+	\begin{align}
+		A^{*} \eqdef   A^0 \quad\mbox{except: }A^*_{\bf c}[i]=|\vec{o}|
+	\end{align}
+\end{itemize}
+
+
+If the remaining gas cannot afford the code-deposit cost (i.e. $g^{**}<d$) or the code size exceeds 49152 bytes (i.e. $|\vec{o}|<49152$), then we also declare that an exception occurs and handle it as a failed contract creation attempt. 
+%
+Function $\creation$ returns $(\varnothing,g^{**},A^0,1)$ immediately. 
+
+If the contract creation fails for any reason, the value of the transaction is not transferred to the aborted contract, and collateral for storing the code is not locked either.
+If the contract creation succeeds, we formally specify the resultant state, gas, storage limit, substate, and status code by $\left(\st', g', A', z\right)$ as follows:
+\begin{align}
+	g' &\eqdef g^{**}-d \\
+	\st' &\eqdef \st^{**} \quad\mbox{except:} \\
+		\st'[a]_c &\eqdef \kec(\vec{o}) \\ 
+		\st'[a]_{code} &\eqdef (\vec{o},i) \\
+		\st'[i]_{o}    &\eqdef \st^{**}[i]_{o}  + |\vec{o}|\times \collateralperbyte \\
+	\notag \\
+	A' &\eqdef A \Cup A^{*} \\ 
+	z &\eqdef 0
+\end{align}
+
+In the determination of $\st'$, the final body code for the newly created account is specified by the byte sequence $\vec{o}$ derived from the execution of the initialization code $\vec{i}$.
+The status code $z$ is an indicator of whether the contract creation succeeds.
+
+Therefore the result of contract creation is either a successfully created new contract with its endowment and collateral for storage, or no new contract and no transfer of value or collateral at all.
+
+\paragraph{Subtleties.} 
+Note that while the initialization code is executing, the newly created address exists but with no intrinsic body code. 
+Thus any message call received by it during this time causes no code to be executed. 
+If the initialization execution ends with a $\op{SUICIDE}$ instruction, the matter is moot since the account will be deleted before the transaction is completed. 
+For a normal $\op{STOP}$ code, or if the code returned is otherwise empty, then the world-state may left with a zombie account. Only the administrator of such contract can destroy it by calling the internal contract described in \cref{sec:admin}.
