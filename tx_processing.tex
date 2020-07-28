@@ -493,7 +493,7 @@ where $\mathrm{LE}_{32}(\cdot)$ denotes the function that expands an integer val
 %
 Note that we use $\st[s]_n-1$ since it is indeed the sender's nonce at the generation of the respective transaction or VM operation. 
 
-If $\st[a]\neq \varnothing$, a \emph{Contract Address Conflict} exception is triggered. Function $\creation$ returns $(\varnothing,g,A^0,1,\varnothing)$ immediately. 
+If $\st[a]_c\neq \kec(\emptystring)$, a \emph{Contract Address Conflict} exception is triggered. Function $\creation$ returns $(\varnothing,g,A^0,1)$ immediately. 
 
 Otherwise, the account's nonce is initialized to one, the balance as the value passed by the contract creation transaction,
 the storage and code as for the empty string.
@@ -501,7 +501,7 @@ The sender's balance is reduced by the transferred value (there must be enough b
 Thus the mutated state becomes $\st^*$:
 \begin{align}
 	\st^* & \eqdef \st \qquad{ \text{except:}}\\
-	\st^*[a] &\eqdef \account^0 \quad\text{except:}\; \st^*[a]_n=1 \wedge \st^*[a]_b=v \wedge \st^*[a]_a=s \wedge \st^*[a]_w=i\\
+	\st^*[a] &\eqdef \account^0 \quad\text{except:}\; \st^*[a]_n=1 \wedge \st^*[a]_b=v+\st[a]_b \wedge \st^*[a]_a=s\\
 	% \left(a, \account_{state}\right)\\
 	\st^*[s] &\eqdef \begin{cases}
 		\varnothing & \mbox{if $\st[s]=\varnothing$ $\land$ $v=0$}\\
@@ -541,9 +541,11 @@ $I_{\head}$ is the block header of the present block.
 $I_\vec{L}$ is the list of block headers ordered in front of the current block.
 
 Code execution depletes gas, and gas may not go below zero, thus the actual execution may exit before the code has come to a natural halting state.
-In this (and several other) exceptional cases we say an out-of-gas (OOG) exception has occurred:
+In this (and several other) exceptional cases (i.e. $\st^{**}=\varnothing \land \vec{o}=\varnothing$), we say an out-of-gas (OOG) exception has occurred:
 the evaluated state is set to the empty set $\varnothing$, 
 and the entire contract creation should have no effect on the state, effectively leaving it as it was immediately prior to the attempt of the failed creation.
+%
+Function $\creation$ returns $(\varnothing,g^{**},A^0,1)$ immediately. 
 
 
 If the initialization code completes successfully,
@@ -562,38 +564,22 @@ The storage cost $s$ is proportional to the code size of the created contract an
 \end{itemize}
 
 
-
-If the remaining gas cannot afford the code-deposit cost, i.e. $g^{**}<d$, then we also declare that an out-of-gas exception occurs and handle it as a failed contract creation attempt.
-
+If the remaining gas cannot afford the code-deposit cost (i.e. $g^{**}<d$) or the code size exceeds 49152 bytes (i.e. $|\vec{o}|<49152$), then we also declare that an exception occurs and handle it as a failed contract creation attempt. 
+%
+Function $\creation$ returns $(\varnothing,g^{**},A^0,1)$ immediately. 
 
 If the contract creation fails for any reason, the value of the transaction is not transferred to the aborted contract, and collateral for storing the code is not locked either.
-Thus we formally specify the resultant state, gas, storage limit, substate, and status code by $\left(\st', g', A', z\right)$ as follows:
+If the contract creation succeeds, we formally specify the resultant state, gas, storage limit, substate, and status code by $\left(\st', g', A', z\right)$ as follows:
 \begin{align}
-	g' &\eqdef \begin{cases}
-		0 & \mbox{if $F$}\\
-		g^{**}-d & \mbox{otherwise}
-	\end{cases} \\
-	% \ell' &\eqdef \begin{cases}
-	% 	\ell^{**} & \mbox{if $F$}\\
-	% 	\ell^{**}-c & \mbox{otherwise}
-	% \end{cases} \\
-	\st' &\eqdef 
-	\begin{cases}
-		\st 	 	& \mbox{if $F$}\\
-		% \st^{**} 	\mbox{ except:} 
-		% \; \st'[a] = \varnothing & \mbox{if $\mathsf{DEAD}(\st^{**},a)$}\\
-		\st^{**} 	\mbox{ except:} 
-		\; \st'[a]_c = \kec(\vec{o})\;\land\; \st'[a]_{code} = \vec{o}& \mbox{otherwise}
-	\end{cases}\\
+	g' &\eqdef g^{**}-d \\
+	\st' &\eqdef \st^{**} \quad\mbox{except:} \\
+		\st'[a]_c &\eqdef \kec(\vec{o}) \\ 
+		\st'[a]_{code} &\eqdef (\vec{o},i) \\
+		\st'[i]_{o}    &\eqdef \st^{**}[i]_{o}  + |\vec{o}|\times \collateralperbyte \\
+	\notag \\
 	A' &\eqdef A \Cup A^{*} \\ 
-	z &\eqdef 
-	\begin{cases}
-		1	 	& \mbox{if $F$}\\
-		0	 	& \mbox{otherwise}
-	\end{cases}
+	z &\eqdef 0
 \end{align}
-where $F\eqdef\left( \left(\st^{**}=\varnothing \land \vec{o}=\varnothing \right)\;\lor\; g^{**}<d \;\lor\;|{\bf o}|>49152 \right)$
-denotes the event that the contract creation attempt fails.
 
 In the determination of $\st'$, the final body code for the newly created account is specified by the byte sequence $\vec{o}$ derived from the execution of the initialization code $\vec{i}$.
 The status code $z$ is an indicator of whether the contract creation succeeds.
