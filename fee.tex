@@ -1,0 +1,52 @@
+% !TEX root = ./tech-specification.tex
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\section{Fee Schedule}\label{app:fees}
+
+The fee schedule $G$ is a tuple of $35$ scalar values corresponding to the relative costs, in gas, of a number of abstract operations that a transaction may effect.
+
+\begin{center}
+	\begin{tabu}{l r l}
+		\toprule
+		Name & Value & Description* \\
+		\midrule
+		$G_{zero}$ & 0 & Nothing paid for operations of the set {\small $W_{zero}$}. \\
+		$G_{base}$ & 2 & Amount of gas to pay for operations of the set {\small $W_{base}$}. \\
+		$G_{verylow}$ & 3 & Amount of gas to pay for operations of the set {\small $W_{verylow}$}. \\
+		$G_{\mathrm{low}}$ & 5 & Amount of gas to pay for operations of the set {\small $W_{\mathrm{low}}$}. \\
+		$G_{mid}$ & 8 & Amount of gas to pay for operations of the set {\small $W_{mid}$}. \\
+		$G_{\mathrm{high}}$ & 10 & Amount of gas to pay for operations of the set {\small $W_{\mathrm{high}}$}. \\
+		$G_{extcode}$ & 700 & Amount of gas to pay for an $\op{EXTCODESIZE}$ operation. \\
+		$G_{extcodehash}$ & 400 & Amount of gas to pay for an $\op{EXTCODEHASH}$ operation. \\
+		$G_{balance}$ & 400 & Amount of gas to pay for a {\small BALANCE} operation. \\
+		$G_{sload}$ & 200 & Paid for a $\op{SLOAD}$ operation. \\
+		$G_{jumpdest}$ & 1 & Paid for a $\op{JUMPDEST}$ operation. \\
+		\linkdest{G__sset}{}$G_{sset}$ & 5000 & Paid for an $\op{SSTORE}$ operation. \\
+		\linkdest{R__selfdestruct}{}$R_{suicide}$ & 24000 & Refund given (added into refund counter) for self-destructing an account. \\
+		\linkdest{G__selfdestruct}{}$G_{suicide}$ & 5000 & Amount of gas to pay for a $\op{SUICIDE}$ operation. \\
+		$G_{create}$ & 32000 & Paid for a $\op{CREATE}$ operation. \\
+		\linkdest{G__codedeposit}{}$G_{codedeposit}$ & 200 & Paid per byte for a $\op{CREATE}$ operation to succeed in placing code into state. \\
+		$G_{call}$ & 700 & Paid for a $\op{CALL}$ operation. \\
+		$G_{callvalue}$ & 9000 & Paid for a non-zero value transfer as part of the $\op{CALL}$ operation. \\
+		$G_{callstipend}$ & 2300 & A stipend for the called contract subtracted from $G_{callvalue}$ for a non-zero value transfer. \\
+		\linkdest{G__newaccount}{}$G_{newaccount}$ & 25000 & Paid for a $\op{CALL}$ or $\op{SUICIDE}$ operation which creates an account. \\
+		$G_{exp}$ & 10 & Partial payment for an $\op{EXP}$ operation. \\
+		$G_{expbyte}$ & 50 & Partial payment when multiplied by $\lceil\log_{256}(exponent)\rceil$ for the $\op{EXP}$ operation. \\
+		$G_{memory}$ & 3 & Paid for every additional word when expanding memory. \\
+		\linkdest{G__txcreate}{}$G_\text{txcreate}$ & 32000 & Paid by all contract-creating transactions after the {\textit{Homestead} transition}.\\
+		\linkdest{G__txdatazero}{}$G_{txdatazero}$ & 4 & Paid for every zero byte of data or code for a transaction. \\
+		\linkdest{G__txdatanonzero}{}$G_{txdatanonzero}$ & 68 & Paid for every non-zero byte of data or code for a transaction. \\
+		\linkdest{G__transaction}{}$G_{transaction}$ & 21000 & Paid for every transaction. \\
+		$G_{\mathrm{log}}$ & 375 & Partial payment for a $\op{LOG}$ operation. \\
+		$G_{\mathrm{logdata}}$ & 8 & Paid for each byte in a $\op{LOG}$ operation's data. \\
+		$G_{\mathrm{logtopic}}$ & 375 & Paid for each topic of a $\op{LOG}$ operation. \\
+		$G_{sha3}$ & 30 & Paid for each $\op{SHA3}$ operation. \\
+		$G_{sha3word}$ & 6 & Paid for each word (rounded up) for input data to a $\op{SHA3}$ operation. \\
+		$G_{copy}$ & 3 & Partial payment for $\op{*COPY}$ operations, multiplied by words copied, rounded up. \\
+		$G_{blockhash}$ & 20 & Payment for $\op{BLOCKHASH}$ operation. \\
+		$G_{quaddivisor}$ & 20 & The quadratic coefficient of the input sizes of the exponentiation-over-modulo precompiled\\
+		&&contract. \\
+		\bottomrule
+	\end{tabu}
+\end{center}

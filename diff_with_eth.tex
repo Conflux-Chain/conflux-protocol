@@ -1,0 +1,116 @@
+% !TEX root = ./tech-specification.tex
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\section{Checklist for porting EVM contract to Conflux}
+
+The Ethereum contract is also a valid Conflux contract. So Ethereum contracts can be ported to Conflux easily and have almost same execution results. But notice that Conflux may have different behavior in the following points:
+\begin{itemize}
+	\item {\bf Gas used and refund:} Conflux requires less gas in SSTORE operation but no longer refunds resetting storage and contract destruction. 
+	\item {\bf Gas fee refund:} Conflux will refund at most 1/4 of gas limit. So try to provide an accurate estimation for gas limit before signing transactions. 
+	\item {\bf Contract address:} Conflux uses a different way to compute address for normal account from public key and compute contract address in contract creation. (See equation~(\ref{eq:account-address}) and (\ref{eq:new-address}) for details.) The contract developers usually don't need to handle this difference. 
+	\item {\bf Contract address conflict:} If the contract address has existed before contract creation, Conflux will abort the contract creation. This is different with the behavior in Ethereum. 
+	\item {\bf Collateral for storage:} Conflux requires collateral for storage. Please make sure there is enough balance for storage collateral. 
+
+\end{itemize}
+
+\newpage
+\section{Difference between Ethereum and {\name}}
+\begin{center}
+	\begin{tabu}{l X X l}%[htbp]
+		% \caption{Difference between Ethereum and {\name}}
+		% \smallskip
+		% \begin{tabularx}{\textwidth}{lXXl}
+			\toprule
+			 &  
+			\textbf{Ethereum} & \textbf{{\name}} &  \\
+			\midrule
+			\multicolumn{4}{l}{(Virtual Machine and transaction execution)}\\
+			\hline
+			Address	type & indistinguishable for all accounts  
+			& distinct prefixes for normal (non-contract) account, \emph{Solidity} contracts, and reserved contracts (a.k.a. ``precomipled contracts'')  & \cref{subsec:accounts} \\
+			\hline
+			Transaction field	& --	& added {\bf chainID}, {\bf storageLimit} and {\bf epochHeight}	& \cref{sec:tx} 
+			\\
+			% \hline
+			% Block field & {\bf nonce} has $64$ bits & {\bf nonce} has $256$ bits & \cref{sec:block}\\
+			% & {\bf number} records number of all ancestor blocks  & {\bf height} records number of ancestor blocks on the pivot chain &\\
+			% & {\bf stateRoot} etc. commit to the state after executing the latest block & {\bf deferredStateRoot} etc. commit to the state of deferred execution &\\
+			% & --  & added {\bf blame}, {\bf adaptiveWeight} &
+			% \\
+			\hline
+			Gas consumption and refunding & all unused gas is refundable & at most a quarter of {\bf gasLimit} & \cref{subsec:gas_and_pay} \\
+			\cline{2-4}			
+			& full gas fee charged if execution fails on any exception 
+			& no gas fee when exception is not caused by the sender  &  \cref{subsubsec:preprocessing} \\
+			\hline
+			Cost of storage & one-off gas fee &  gas fee + collateral & \cref{subsec:storage consumption}  \\
+			\cline{2-4}			
+			% Fee schedule ($\hyperlink{SSTORE}{\op{SSTORE}}$)
+			& $\hyperlink{SSTORE}{\op{SSTORE}}$ costs $5000$ or $20000$ gas depending on the effect of executing this instruction, may cause a refund of $15000$ gas for clearing a storage value 
+			& $\hyperlink{SSTORE}{\op{SSTORE}}$ costs \hyperlink{G__sset}{$G_{sset}$}$=5000$ gas and every \sunitsize storage costs \sunitprice for collateral (locked until the storage is overwritten or released)   
+			& \cref{sec:collateral}\\
+			\hline
+			Transaction validation & 
+			{any invalid transaction leads to the whole block being invalid} & 
+			{invalid transactions are skipped, while other transactions in the same block can still be valid} & \cref{sec:txorder}\smallskip\\
+			\cline{2-4}
+			& {a transaction is invalid if sender's balance cannot afford the up-front payment for transferred value and gas fee (indeed the whole block will be invalid)} & {the transaction is valid if it satisfies all other assertions, but the execution fails immediately because of insufficient balance for the up-front payment (sender's nonce is increased and gas fee is charged)}	& \cref{sec:tx validate} \\\cline{2-4}
+			% \hline
+			& sender must pay transaction fee from his own balance (sender's balance cannot be zero)	& a sponsor may pay for the cost of calling a smart contract (sender's balance can be zero)	& \cref{sec:sponsor} \\
+			\cline{2-4}
+			& validity of a transaction cannot depend on current time or height & a transaction is only valid in a specified window of epochs & \cref{sec:tx} \\
+			\cline{2-4}
+			& no check on recipient's address & recipient address must have a valid type (i.e. normal account, Solidity contract, or reserved contract)  & \cref{subsec:accounts} \\
+			\hline
+			Contract creation & the address of contract created by $\hyperlink{CREATE}{\op{CREATE}}$ does not depend on the initialization code  &  the address of contract created by both $\hyperlink{CREATE}{\op{CREATE}}$ and $\hyperlink{CREATE2}{\op{CREATE2}}$ depends on the initialization code &  \cref{eq:new-address} \\
+			\cline{2-4} & 
+			$\hyperlink{CREATE}{\op{CREATE}}$ costs $G_{create}=32000$, regardless initilization code length	
+			& $\hyperlink{CREATE}{\op{CREATE}}$ costs the same as $\hyperlink{CREATE2}{\op{CREATE2}}$  & \cref{eq:gas_cost} \\
+			\cline{2-4}
+			& the maximum size of the byte-code is 24756 bytes & The maximum size of the byte-code is 49152 bytes & section~\ref{sec:creation}\\
+			\cline{2-4}
+			& on address conflict, reset contract but inherit the balance &  
+			on address conflict, abort the contract creation   
+			& \cref{sec:creation}  \smallskip\\
+			\hline
+			Contract destruction & only by $\hyperlink{SUICIDE}{\op{SUICIDE}}$ & 
+			destruction may effect on request of the contract's administrator
+			(via the AdminControl contract) & \cref{sec:admin}\\
+			% \hline
+			% 	&	&	& \\
+			% \hline
+			% 	&	&	& \\
+			\midrule
+			Internal Contract & -- & cannot be invoked by system operation, i.e. via $\op{CALLCODE}$ or $\op{DELEGATECALL}$  
+			& \cref{sec:internal} \smallskip\\
+			% \hline
+			% Fee schedule (internal contracts) & -- & AdminContral: $5000$   & \cref{sec:internal} \\
+			% &  & StakingContral: $10000$   &   \\
+			% &  & SponsorContral: $10000$ for {\tt set\char`_sponsor\char`_for\char`_gas/collateral()}, $5000$ for each member update in {\tt add/remove\char`_privilege()} &  \\
+			% \midrule
+			% \multicolumn{4}{l}{(Instruction Set)}\\
+			\hline
+			$\hyperlink{BLOCKHASH}{\op{BLOCKHASH}}$ 	&  get the hash of one of the 256 most recent complete blocks	& get the hash of the last block, return zero if querying other blocks	& \cref{app:instruction-set}\\
+			\hline
+			$\hyperlink{CHAINID}{\op{CHAINID}}$ 	& EIP-1344	&  get the {\name} chain ID ($503$)	&  \cref{app:instruction-set}\\
+			% \hline
+			% $\hyperlink{BEGINSUB}{\op{BEGINSUB}}$ 	& OpCode = 0x5c (EIP-2315)	& OpCode = 0xb2 	& \cref{app:instruction-set}\\
+			% \hline
+			% $\hyperlink{JUMPSUB}{\op{JUMPSUB}}$ 		& OpCode = 0x5d (EIP-2315)	& OpCode = 0xb3	& \cref{app:instruction-set}\\
+			% \hline
+			% $\hyperlink{RETURNSUB}{\op{RETURNSUB}}$ 	& OpCode = 0x5e (EIP-2315)	& OpCode = 0xb7	& \cref{app:instruction-set}\\
+			% \midrule
+			% \multicolumn{4}{l}{(Implemented in Ethereum code but not included in Ethereum yellowpaper)}\\
+			% \hline
+			% $\hyperlink{SELFBALANCE}{\op{SELFBALANCE}}$ 	&  EIP-1884	& push the balance of the currently executing account to the stack.	& \cref{app:instruction-set}\\	
+			\bottomrule
+		% \end{tabularx}
+		% \begin{tablenotes}
+		% 	\item[$\ast$] Slightly better security than confirmation with $6$ successive blocks in Bitcoin.
+
+		% 	% \item[$\ast\ast$] It is possible that the fast confirmation rule is never satisfied for a predetermined risk tolerance,{}
+		% 	% in which case the block can only be confirmed with the Slow Confirmation Rule.
+		% \end{tablenotes}
+	\end{tabu}
+\end{center}

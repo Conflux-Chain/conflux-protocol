@@ -11,7 +11,7 @@ Currently, Conflux has three internal contracts with addresses as follows.
 %
 When the recipient's address $r$ is one of the internal contracts, Conflux processes $\execute_{\sf internal}(\st^*,g,I)$ and returns $\left(\st^{**}, g^{**},  A, \vec{o} \right)$. 
 
-\subsection{Interfaces and gas required}
+\subsection{Interfaces and gas required}\label{sec:internal_gas}
 
 In execution of internal contracts, the call data $I_\mathbf{d}$ is interpreted as a function call to Solidity interface. Function $V(\st,c,I_\mathbf{d})$ gives the gas used for internal contract execution by called function and parameters.
 $\\$
