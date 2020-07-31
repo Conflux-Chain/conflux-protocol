@@ -258,10 +258,10 @@ Both types of transactions share the following common fields:
 	It is the transaction sender's responsibility to avoid any extravagance caused by an unnecessarily high {\bf gasLimit}.
 
 	\item {\bf action:} 
-	A variable size field indicating the action of this transaction, formally denoted by $\tx_a$. 
-	There is a sub-field {\bf create} indicating whether $\tx$ is a contract creation transaction, which we make it implicit for notation convenience. 
-	Thus, for action transactions $\tx_a$ indicates the $160$-bit address of the recipient, which refers to either a normal account or a contract account;
-	otherwise in case of a creation transaction, the recipient is indeed the newly created contract and we interpret $\tx_a$ as the only element in $\B_0$ and write $\tx_a = \emptystring$.
+	A variable size field indicating the action of this transaction, which is either a \textbf{call} to an address or a \textbf{creation}, formally denoted by $\tx_a\in \B_{160}\cup\B_0$. 
+	% There is a sub-field {\bf create} indicating whether $\tx$ is a contract creation transaction, which we make it implicit for notation convenience. 
+	For a \textbf{call} transaction, action $\tx_a$ indicates a $160$-bit address of the recipient, which refers to either a normal account or a contract account;
+	otherwise in case of a \textbf{creation} transaction, the recipient is indeed the newly created contract and we interpret $\tx_a$ as the only element in $\B_0$ and write $\tx_a = \emptystring$.
 
 	\item {\bf value:} A scalar value equal to the amount of \unit that the transactions sender wants to transfer to the recipient, i.e. the account specified in $\tx_a$ or the newly created contract.
 	Formally denoted by $\tx_v\in\N_{256}$.
