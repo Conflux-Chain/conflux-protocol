@@ -113,9 +113,15 @@
 %----------------------------------------------------------------------------------------
 %	ARTICLE INFORMATION
 %----------------------------------------------------------------------------------------
+\IfFileExists{version.tex}{
+    \input{version}
+}{
+    \newcommand{\fdate}{\today}
+    \newcommand{\version}{Temporary}
+}
 
 \JournalInfo{[Oceanus v0.6.0]} % Journal information
-\Archive{\today} % Additional notes (e.g. copyright, DOI, review/research article)
+\Archive{\fdate\\\version} % Additional notes (e.g. copyright, DOI, review/research article)
 
 \PaperTitle{{\name} Protocol Specification} % Article title
 

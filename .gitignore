@@ -1,3 +1,7 @@
+## Do not include context files
+
+version.tex
+
 ## Core latex/pdflatex auxiliary files:
 *.aux
 *.lof
