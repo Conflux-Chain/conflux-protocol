@@ -6,42 +6,73 @@
 \label{sec:tx_processing}
 
 \name implements the same virtual machine as Ethereum \cite{ETH_yellow}. 
-The execution of a transaction defines the transform function $\Upsilon(\st,\tx,\tau)$, which is similar with Ethereum's state transition function.
+The execution of a transaction defines the transform function $\Upsilon(\st,\tx,\vec{L})$, which is similar with Ethereum's state transition function.
+
+\subsection{Overview}
+
 In what follows we focus on the \name specific designs in the execution.
 
-\subsection{Gas, Payment and Collateral}
-\label{subsec:gas_and_pay}
+\paragraph{Gas and Payment}\label{subsec:gas_and_pay}
 
 As defined in Section~\ref{sec:tx} every transaction $\tx$ has two fields of {\bf gasLimit} and {\bf gasPrice} that declare the specific amount of associated gas $\tx_g$ and the price $\tx_p$ of per unit gas.
 When starting the execution of a transaction $\tx$, the purchase of gas happens at the price $\tx_g \times \tx_p$ and the transaction $\tx$ is considered invalid if the actor responsible for the cost of gas consumption cannot afford such a purchase.
 % , i.e. $\sender{\tx}_b < \tx_g \times \tx_p$.
-\newversion{
-	Normally $\sender{\tx}$, the sender of $\tx$, is responsible for the cost of gas consumption. 
-	In case the transaction $\tx$ is calling a smart contract $\contract$ with sponsorship for gas consumption and $\tx$ is qualified for the subsidy as specified in Section~\ref{sec:sponsor}, 
-	$\contract$ is responsible for the purchase of gas if it has sufficient \textbf{sponsor balance for gas},
-	and otherwise the sender $\sender{\tx}$ is still responsible for the whole purchase of gas as if there were no sponsor at all.
-}
+Normally $\sender{\tx}$, the sender of $\tx$, is responsible for the cost of gas consumption. But the gas consumption maybe sponsored by called contract sometimes. (See the following paragraph for details.)
+
 Like in Ethereum, gas does not exist outside the execution of transactions.
 
-
+The unused gas can be refunded after the transaction $\tx$ is executed, but no more than a quarter of the total value spent on purchasing. 
 	The unused gas can be refunded after the transaction $\tx$ is executed, but no more than a quarter of the total value spent on purchasing. 
-	Thus, the \emph{refundable amount of gas} $g^{\dagger}$ is the minimum of the \emph{legitimately remaining gas} $g'$ and a quarter of the \textbf{gasLimit} of $\tx$,
+The unused gas can be refunded after the transaction $\tx$ is executed, but no more than a quarter of the total value spent on purchasing. 
+	The unused gas can be refunded after the transaction $\tx$ is executed, but no more than a quarter of the total value spent on purchasing. 
+The unused gas can be refunded after the transaction $\tx$ is executed, but no more than a quarter of the total value spent on purchasing. 
+	The unused gas can be refunded after the transaction $\tx$ is executed, but no more than a quarter of the total value spent on purchasing. 
+The unused gas can be refunded after the transaction $\tx$ is executed, but no more than a quarter of the total value spent on purchasing. 
+Thus, the \emph{refundable amount of gas} $g^{\dagger}$ is the minimum of the \emph{legitimately remaining gas} $g'$ and a quarter of the \textbf{gasLimit} of $\tx$,
+i.e. $g^{\dagger}\eqdef \min\set{g', \tx_g/4}$, 
 	i.e. $g^{\dagger}\eqdef \min\set{g', \tx_g/4}$, 
+i.e. $g^{\dagger}\eqdef \min\set{g', \tx_g/4}$, 
+	i.e. $g^{\dagger}\eqdef \min\set{g', \tx_g/4}$, 
+i.e. $g^{\dagger}\eqdef \min\set{g', \tx_g/4}$, 
+	i.e. $g^{\dagger}\eqdef \min\set{g', \tx_g/4}$, 
+i.e. $g^{\dagger}\eqdef \min\set{g', \tx_g/4}$, 
+where in principle no gas is refundable (i.e. $g^{\dagger} = g' = 0$) if the execution of $\tx$ fails due to the sender's fault. 
 	where in principle no gas is refundable (i.e. $g^{\dagger} = g' = 0$) if the execution of $\tx$ fails due to the sender's fault. 
-	% The \emph{consumed amount of gas}\footnote{Here for simplicity we write $\gused(\cdot)$ as a function of $\tx$. However it is indeed a function defined on both $\tx$ and the world-state at the beginning of the execution of $\tx$. Thus, multiple occurrences of $\tx$ are considered as distinct inputs for this function and they may incur different amount of consumed gas.} $\gused(\tx)$ is defined as
-	% \begin{align*}
-	% 	\gused(\tx) \eqdef \begin{cases}
-	% 		\tx_g-g^{\dagger} & \mbox{if $\tx$ is executed}\\
-	% 		0 & \mbox{if $\tx$ is not executed (i.e. only when $R_z=2$ as in Section~\ref{sec:tx validate})}
+where in principle no gas is refundable (i.e. $g^{\dagger} = g' = 0$) if the execution of $\tx$ fails due to the sender's fault. 
+	where in principle no gas is refundable (i.e. $g^{\dagger} = g' = 0$) if the execution of $\tx$ fails due to the sender's fault. 
+where in principle no gas is refundable (i.e. $g^{\dagger} = g' = 0$) if the execution of $\tx$ fails due to the sender's fault. 
+% The \emph{consumed amount of gas}\footnote{Here for simplicity we write $\gused(\cdot)$ as a function of $\tx$. However it is indeed a function defined on both $\tx$ and the world-state at the beginning of the execution of $\tx$. Thus, multiple occurrences of $\tx$ are considered as distinct inputs for this function and they may incur different amount of consumed gas.} $\gused(\tx)$ is defined as
+% \begin{align*}
+% 	\gused(\tx) \eqdef \begin{cases}
+% 		\tx_g-g^{\dagger} & \mbox{if $\tx$ is executed}\\
+% 		0 & \mbox{if $\tx$ is not executed (i.e. only when $R_z=2$ as in Section~\ref{sec:tx validate})}
+% 	\end{cases} 
 	% 	\end{cases} 
-	% \end{align*}
+% 	\end{cases} 
+	% 	\end{cases} 
+% 	\end{cases} 
+	% 	\end{cases} 
+% 	\end{cases} 
+% \end{align*}
+The actor who initially purchased the gas for $\tx$ will get the refund of $g^{\dagger}\times\tx_p$. And the \coinsign paid for the consumed gas is 
 	The actor who initially purchased the gas for $\tx$ will get the refund of $g^{\dagger}\times\tx_p$. And the \coinsign paid for the consumed gas is 
-	%
-	\begin{align}
-		\left(\tx_g-g^{\dagger}\right)\times \tx_p.
-	\end{align}
-	%
+The actor who initially purchased the gas for $\tx$ will get the refund of $g^{\dagger}\times\tx_p$. And the \coinsign paid for the consumed gas is 
+	The actor who initially purchased the gas for $\tx$ will get the refund of $g^{\dagger}\times\tx_p$. And the \coinsign paid for the consumed gas is 
+The actor who initially purchased the gas for $\tx$ will get the refund of $g^{\dagger}\times\tx_p$. And the \coinsign paid for the consumed gas is 
+	The actor who initially purchased the gas for $\tx$ will get the refund of $g^{\dagger}\times\tx_p$. And the \coinsign paid for the consumed gas is 
+The actor who initially purchased the gas for $\tx$ will get the refund of $g^{\dagger}\times\tx_p$. And the \coinsign paid for the consumed gas is 
+%
+\begin{align}
+	\left(\tx_g-g^{\dagger}\right)\times \tx_p.
+\end{align}
+%
+If the $\tx$ is not executed (i.e. only when $R_z=2$ as in Section~\ref{sec:tx validate})), no gas will be charged. If the sender $\sender{\tx}$ can not afford gas fee, all its the remained balance of sender $\sender{\tx}$ will be charged as gas fee. The actual charged gas fee will be record in receipt $R_f$. 
 	If the $\tx$ is not executed (i.e. only when $R_z=2$ as in Section~\ref{sec:tx validate})), no gas will be charged. If the sender $\sender{\tx}$ can not afford gas fee, all its the remained balance of sender $\sender{\tx}$ will be charged as gas fee. The actual charged gas fee will be record in receipt $R_f$. 
+If the $\tx$ is not executed (i.e. only when $R_z=2$ as in Section~\ref{sec:tx validate})), no gas will be charged. If the sender $\sender{\tx}$ can not afford gas fee, all its the remained balance of sender $\sender{\tx}$ will be charged as gas fee. The actual charged gas fee will be record in receipt $R_f$. 
+	If the $\tx$ is not executed (i.e. only when $R_z=2$ as in Section~\ref{sec:tx validate})), no gas will be charged. If the sender $\sender{\tx}$ can not afford gas fee, all its the remained balance of sender $\sender{\tx}$ will be charged as gas fee. The actual charged gas fee will be record in receipt $R_f$. 
+If the $\tx$ is not executed (i.e. only when $R_z=2$ as in Section~\ref{sec:tx validate})), no gas will be charged. If the sender $\sender{\tx}$ can not afford gas fee, all its the remained balance of sender $\sender{\tx}$ will be charged as gas fee. The actual charged gas fee will be record in receipt $R_f$. 
+	If the $\tx$ is not executed (i.e. only when $R_z=2$ as in Section~\ref{sec:tx validate})), no gas will be charged. If the sender $\sender{\tx}$ can not afford gas fee, all its the remained balance of sender $\sender{\tx}$ will be charged as gas fee. The actual charged gas fee will be record in receipt $R_f$. 
+If the $\tx$ is not executed (i.e. only when $R_z=2$ as in Section~\ref{sec:tx validate})), no gas will be charged. If the sender $\sender{\tx}$ can not afford gas fee, all its the remained balance of sender $\sender{\tx}$ will be charged as gas fee. The actual charged gas fee will be record in receipt $R_f$. 
 
 	
 The charged gas fee is added to the reward pool for miners. Thus in general a higher gas price on a transaction would cost the sender more but also increase the chance of being processed timely.
@@ -50,9 +81,34 @@ In computing the accumulated gas used of the whole block, the non-refundable gas
 %
 Thus the accumulated gas used of a block is intrinsically taking the summation of field $R_g$ over transaction receipts.
 
-Every transactions also have a filed of \textbf{storage limit} that declare the maximum storage bytes $\tx_\ell$ increasing for the present transaction. Before transaction execution, besides gas fee and transferred value, the sender $\sender{\tx}$ must have enough balance for storage collateral for specified storage limit, i.e., $\tx_\ell\times\collateralperbyte\;\unit$. Unlike the gas fee, these collateral will not be charged or locked at this time. At the end of transaction execution, if the sender doesn't have enough balance paying for the increased storage collateral or the increased storage bytes of sender exceeds storage limit, the transaction execution fails. More details for collateral for storage is specified in section~\ref{sec:collateral}. 
+\paragraph{Storage Limit and Storage Collateral}
 
-\subsection{Pre-execution Validation}
+Every transactions also have a filed of \textbf{storageLimit} that declare the maximum storage bytes $\tx_\ell$ increasing for the present transaction. Before transaction execution, besides gas fee and transferred value, the sender $\sender{\tx}$ must have enough balance for storage collateral for specified \textbf{storageLimit}, i.e., $\tx_\ell\times\collateralperbyte\;\unit$. Unlike the gas fee, these collateral will not be charged or locked at this time. At the end of transaction execution, if the sender doesn't have enough balance paying for the increased storage collateral or the increased storage bytes of sender exceeds storage limit, the transaction execution fails. More details for collateral for storage is specified in section~\ref{sec:collateral}. 
+
+\paragraph{Sponsorship}
+
+In case the transaction $\tx$ is calling a smart contract $\contract$ with \textbf{sponsor for gas} and $\tx$ is qualified for the subsidy as checked in function $\mathsf{Whitelist}(\cdot)$ defined in \cref{eq:whitelist}, 
+$\contract$ is responsible for the purchase of gas if it has sufficient \textbf{sponsor balance for gas}
+and the transaction \textbf{gasLimit} $\tx_g$ does not exceed the {\bf sponsor limit for gas}, 
+and otherwise the sender $\sender{\tx}$ is still responsible for the whole purchase of gas as if there were no sponsor at all. 
+%
+Formally, we define function $\mathsf{GasElig}(\st,\tx)$ to check whether transaction $\tx$ is eligible for gas consumption sponsorship and define function $\mathsf{GasSpr}(\st,\tx)$ to check where $\tx$ is actually sponsored for gas consumption. 
+\begin{align}
+	\mathsf{GasElig}(\st,\tx)&\eqdef \quad \mathrm{Type}_{\tx_a}=\typecontract \;\wedge\; \mathsf{Whitelist}(\st,\sender{\tx},\contract) \;\wedge\; \st[\tx_a]_p[\mathsf{gas}]_a\neq 0 \;\wedge\; \tx_g\times\tx_p \le \st[\tx_a]_p[\mathsf{limit}] \\
+	\mathsf{GasSpr}(\st,\tx) &\eqdef\quad  \mathsf{GasElig}(\st,\tx) \;\wedge\; \st[\tx_a]_p[{\sf gas}]_b\ge \tx_g\times\tx_p
+\end{align}
+%
+where function $\mathsf{Whitelist}(\cdot)$ is defined in \cref{eq:whitelist}. 
+
+If a contract has \textbf{sponsor for collateral}, the storage collateral can also be sposnored by a contract. Formally,
+\begin{align}
+	\mathsf{ColElig}(\st,\tx) &\eqdef \quad \mathrm{Type}_{\tx_a}=\typecontract \;\wedge\; \mathsf{Whitelist}(\st,\sender{\tx},\contract) \;\wedge\; \st[\tx_a]_p[\mathsf{col}]_a\neq 0 \\
+	\mathsf{ColSpr}(\st,\tx) &\eqdef\quad  \mathsf{ColElig}(\st,\tx) \;\wedge\; \st[\tx_a]_p[{\sf col}]_b\ge \tx_\ell\times \collateralperbyte
+\end{align}
+
+\subsection{Transaction Execution}
+
+\subsubsection{Pre-execution Validation}
 \label{sec:tx validate}
 
 Before being executed, a transaction $\tx$ in the processing queue must pass the following secondary test of intrinsic validity. 
@@ -85,20 +141,6 @@ Then the receipt of current transaction will be set as follows:
 
 If $\tx$ passes all the above pre-execution checks, the execution of $\tx$ is as specified in the rest of this section.
 
-\subsection{Transaction Execution}
-
-\subsubsection{Eligibility for sponsorship}
-
-When $\tx$ is calling a contract $\contract$, the gas fee and storage collateral during the transaction execution could be sponsored by the contract $\contract$. If the sender $\sender{\tx}$ is in the {\bf sponsor whitelist} of contract $\contract$, the gas fee of the current transaction does not exceed the {\bf sponsor limit for gas} of contract and contract $\contract$ has a {\bf sponsor for gas}, transaction $\tx$ is eligible for sponsorship on gas consumption. Formally, we define 
-\begin{align}
-	\mathsf{GasElig}(\st,\tx)\eqdef \quad \mathrm{Type}_{\tx_a}=\typecontract \;\wedge\; \mathsf{Whitelist}(\st,\sender{\tx},\contract) \;\wedge\; \st[\tx_a]_p[\mathsf{gas}]_a\neq 0 \;\wedge\; \tx_g\times\tx_p \le \st[\tx_a]_p[\mathsf{limit}] 
-\end{align}
-where function $\mathsf{Whitelist}(\cdot)$ is defined in \cref{eq:whitelist}. 
-
-If the sender $\sender{\tx}$ is in the {\bf sponsor whitelist} of contract $\contract$ and contract $\contract$ has a {\bf sponsor for collateral}, transaction $\tx$ is also eligible for sponsorship on storage collateral.
-\begin{align}
-	\mathsf{ColElig}(\st,\tx)\eqdef \quad \mathrm{Type}_{\tx_a}=\typecontract \;\wedge\; \mathsf{Whitelist}(\st,\sender{\tx},\contract) \;\wedge\; \st[\tx_a]_p[\mathsf{col}]_a\neq 0
-\end{align}
 
 \subsubsection{Preprocessing}
 \label{subsubsec:preprocessing}
@@ -120,9 +162,6 @@ We define the state $\st^*$:
 \paragraph{Gas consumption payment validation.}
 
 The up-front payment of a transaction $\tx$ first figures out whether the gas consumption is sponsored. $\tx$ is sponsored on gas consumption if $\tx$ is eligible for sponsorship on gas consumption and the calling contract has sufficient \textbf{sponsor balance for gas fee}. 
-\begin{align}
-	\mathsf{GasSpr}(\st,\tx) \eqdef\quad  \mathsf{GasElig}(\st,\tx) \;\wedge\; \st[\tx_a]_p[{\sf gas}]_b\ge \tx_g\times\tx_p
-\end{align}
 \begin{itemize}
 	\item If the gas consumption of $\tx$ is sponsored, the world-state $\st^{**}$ after gas consumption payment is as follows: 
 	\begin{align}
@@ -147,7 +186,6 @@ Otherwise, the sender $\sender{\tx}$ is the owner of modified entries
 and has the obligation to pay corresponding storage collateral. 
 %
 \begin{align}
-	\mathsf{ColSpr}(\st,\tx) &\eqdef\quad  \mathsf{ColElig}(\st,\tx) \;\wedge\; \st[\tx_a]_p[{\sf col}]_b\ge \tx_\ell\times 10^{18}/1024 \\
 	\mathsf{ColOwner}(\st,\tx) &\eqdef\left\{ \begin{array}{ll}
 		\tx_a & \text{if } \mathsf{ColSpr}(\st,\tx) = \true \\ 
 		\sender{\tx} & \text{if } \mathsf{ColSpr}(\st,\tx) = \false \\ 
@@ -182,7 +220,7 @@ In other cases, sender $\sender{\tx}$ is responsible for the exception. The resu
 \subsubsection{Execution Substate}
 \label{subsubsec:substate}
 
-The \emph{transaction substate} $A$ is a five tuple which accrues intermediate information during execution. 
+The \emph{transaction substate} $A$ is a three tuple which accrues intermediate information during execution. 
 \begin{align}
 	A\eqdef \left( A_{\bf s}, A_{\bf l}, A_{\bf t}\right)
 \end{align}
