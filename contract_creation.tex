@@ -40,7 +40,7 @@ A number of intrinsic parameters are used when creating a smart contract account
 We define the contract creation function by $\creation$,
 which evaluates from the above parameters and modifies the state $\st$ to a new state $\st'$, together with the leftover gas $g'$, the accrued substate $A$, the result of creation, and the output $\vec{o}$. 
 \begin{align}
-	\left(\st',g', A, z, \vec{o} \right)\eqdef \creation\left(\st, s, o, \vec{t},i, g, p, v, \vec{i}, e, w \right)
+	\left(\st',g', A, z, \vec{o} \right)\eqdef \creation\left(\st, s, o, \vec{t},i, g, p, v, \vec{i}, e, \zeta,w \right)
 \end{align}
 
 
