@@ -22,56 +22,23 @@ Normally $\sender{\tx}$, the sender of $\tx$, is responsible for the cost of gas
 Like in Ethereum, gas does not exist outside the execution of transactions.
 
 The unused gas can be refunded after the transaction $\tx$ is executed, but no more than a quarter of the total value spent on purchasing. 
-	The unused gas can be refunded after the transaction $\tx$ is executed, but no more than a quarter of the total value spent on purchasing. 
-The unused gas can be refunded after the transaction $\tx$ is executed, but no more than a quarter of the total value spent on purchasing. 
-	The unused gas can be refunded after the transaction $\tx$ is executed, but no more than a quarter of the total value spent on purchasing. 
-The unused gas can be refunded after the transaction $\tx$ is executed, but no more than a quarter of the total value spent on purchasing. 
-	The unused gas can be refunded after the transaction $\tx$ is executed, but no more than a quarter of the total value spent on purchasing. 
-The unused gas can be refunded after the transaction $\tx$ is executed, but no more than a quarter of the total value spent on purchasing. 
 Thus, the \emph{refundable amount of gas} $g^{\dagger}$ is the minimum of the \emph{legitimately remaining gas} $g'$ and a quarter of the \textbf{gasLimit} of $\tx$,
 i.e. $g^{\dagger}\eqdef \min\set{g', \tx_g/4}$, 
-	i.e. $g^{\dagger}\eqdef \min\set{g', \tx_g/4}$, 
-i.e. $g^{\dagger}\eqdef \min\set{g', \tx_g/4}$, 
-	i.e. $g^{\dagger}\eqdef \min\set{g', \tx_g/4}$, 
-i.e. $g^{\dagger}\eqdef \min\set{g', \tx_g/4}$, 
-	i.e. $g^{\dagger}\eqdef \min\set{g', \tx_g/4}$, 
-i.e. $g^{\dagger}\eqdef \min\set{g', \tx_g/4}$, 
 where in principle no gas is refundable (i.e. $g^{\dagger} = g' = 0$) if the execution of $\tx$ fails due to the sender's fault. 
-	where in principle no gas is refundable (i.e. $g^{\dagger} = g' = 0$) if the execution of $\tx$ fails due to the sender's fault. 
-where in principle no gas is refundable (i.e. $g^{\dagger} = g' = 0$) if the execution of $\tx$ fails due to the sender's fault. 
-	where in principle no gas is refundable (i.e. $g^{\dagger} = g' = 0$) if the execution of $\tx$ fails due to the sender's fault. 
-where in principle no gas is refundable (i.e. $g^{\dagger} = g' = 0$) if the execution of $\tx$ fails due to the sender's fault. 
+
 % The \emph{consumed amount of gas}\footnote{Here for simplicity we write $\gused(\cdot)$ as a function of $\tx$. However it is indeed a function defined on both $\tx$ and the world-state at the beginning of the execution of $\tx$. Thus, multiple occurrences of $\tx$ are considered as distinct inputs for this function and they may incur different amount of consumed gas.} $\gused(\tx)$ is defined as
 % \begin{align*}
 % 	\gused(\tx) \eqdef \begin{cases}
 % 		\tx_g-g^{\dagger} & \mbox{if $\tx$ is executed}\\
 % 		0 & \mbox{if $\tx$ is not executed (i.e. only when $R_z=2$ as in Section~\ref{sec:tx validate})}
 % 	\end{cases} 
-	% 	\end{cases} 
-% 	\end{cases} 
-	% 	\end{cases} 
-% 	\end{cases} 
-	% 	\end{cases} 
-% 	\end{cases} 
 % \end{align*}
-The actor who initially purchased the gas for $\tx$ will get the refund of $g^{\dagger}\times\tx_p$. And the \coinsign paid for the consumed gas is 
-	The actor who initially purchased the gas for $\tx$ will get the refund of $g^{\dagger}\times\tx_p$. And the \coinsign paid for the consumed gas is 
-The actor who initially purchased the gas for $\tx$ will get the refund of $g^{\dagger}\times\tx_p$. And the \coinsign paid for the consumed gas is 
-	The actor who initially purchased the gas for $\tx$ will get the refund of $g^{\dagger}\times\tx_p$. And the \coinsign paid for the consumed gas is 
-The actor who initially purchased the gas for $\tx$ will get the refund of $g^{\dagger}\times\tx_p$. And the \coinsign paid for the consumed gas is 
-	The actor who initially purchased the gas for $\tx$ will get the refund of $g^{\dagger}\times\tx_p$. And the \coinsign paid for the consumed gas is 
 The actor who initially purchased the gas for $\tx$ will get the refund of $g^{\dagger}\times\tx_p$. And the \coinsign paid for the consumed gas is 
 %
 \begin{align}
 	\left(\tx_g-g^{\dagger}\right)\times \tx_p.
 \end{align}
 %
-If the $\tx$ is not executed (i.e. only when $R_z=2$ as in Section~\ref{sec:tx validate})), no gas will be charged. If the sender $\sender{\tx}$ can not afford gas fee, all its the remained balance of sender $\sender{\tx}$ will be charged as gas fee. The actual charged gas fee will be record in receipt $R_f$. 
-	If the $\tx$ is not executed (i.e. only when $R_z=2$ as in Section~\ref{sec:tx validate})), no gas will be charged. If the sender $\sender{\tx}$ can not afford gas fee, all its the remained balance of sender $\sender{\tx}$ will be charged as gas fee. The actual charged gas fee will be record in receipt $R_f$. 
-If the $\tx$ is not executed (i.e. only when $R_z=2$ as in Section~\ref{sec:tx validate})), no gas will be charged. If the sender $\sender{\tx}$ can not afford gas fee, all its the remained balance of sender $\sender{\tx}$ will be charged as gas fee. The actual charged gas fee will be record in receipt $R_f$. 
-	If the $\tx$ is not executed (i.e. only when $R_z=2$ as in Section~\ref{sec:tx validate})), no gas will be charged. If the sender $\sender{\tx}$ can not afford gas fee, all its the remained balance of sender $\sender{\tx}$ will be charged as gas fee. The actual charged gas fee will be record in receipt $R_f$. 
-If the $\tx$ is not executed (i.e. only when $R_z=2$ as in Section~\ref{sec:tx validate})), no gas will be charged. If the sender $\sender{\tx}$ can not afford gas fee, all its the remained balance of sender $\sender{\tx}$ will be charged as gas fee. The actual charged gas fee will be record in receipt $R_f$. 
-	If the $\tx$ is not executed (i.e. only when $R_z=2$ as in Section~\ref{sec:tx validate})), no gas will be charged. If the sender $\sender{\tx}$ can not afford gas fee, all its the remained balance of sender $\sender{\tx}$ will be charged as gas fee. The actual charged gas fee will be record in receipt $R_f$. 
 If the $\tx$ is not executed (i.e. only when $R_z=2$ as in Section~\ref{sec:tx validate})), no gas will be charged. If the sender $\sender{\tx}$ can not afford gas fee, all its the remained balance of sender $\sender{\tx}$ will be charged as gas fee. The actual charged gas fee will be record in receipt $R_f$. 
 
 	
