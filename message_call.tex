@@ -66,10 +66,10 @@ Thus the previous equation should be taken to mean:
 	\end{cases}
 \end{align}
 
-The recipient's associated code $\vec{b}$, whose Keccak hash is $\st[r]_c$, is executed according to the execution model.
-Note that the pair $\left( \kec(\vec{b}), \vec{b} \right)$ must be stored at some previous point, i.e. at the last update of the code hash $\st[r]_c$ of the recipient's account. 
-Thus $\vec{b}$ can be efficiently determined from $\st[r]_c$,
-and it is unique following the collision resistance of $\kec$.
+The recipient's associated code $\vec{b}$, whose Keccak hash is $\st[c]_c$, is executed according to the execution model.
+Note that the code $\vec{b}$ is stored in code component $\st[c]_{code}$ of account $c$. % must be stored at some previous point, i.e. at the last update of the code hash $\st[r]_c$ of the recipient's account. 
+% Thus $\vec{b}$ can be efficiently determined from $\st[r]_{code}$,
+% and it is unique following the collision resistance of $\kec$.
 
 Similar as with contract creation, if the execution halts due to an exception, then the state is reverted to the point immediately prior to balance transfer (i.e. $\st$) of the message call but no gas is refunded.
 The new state $\st'$ after executing this message call is as follows:

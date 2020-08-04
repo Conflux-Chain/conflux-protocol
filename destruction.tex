@@ -8,7 +8,7 @@ The contract destruction function $\Psi(\st,A)$ updates the world state $\st$ an
 
 \begin{align}
 	\st^*  &\eqdef \st \qquad \mbox{ except:}\\
-		\st^*[I_a]_o &\eqdef \st[I_a]_o + \left|\st[I_a]_{\bf c}\right|\times \collateralperbyte \\
+		\st^*[I_a]_o &\eqdef \st[I_a]_o + \left|\st[I_a]_{\bf p}\right|\times \collateralperbyte \\
 		\st^*[a]_b&\eqdef\st[a]_b+\st[I_a]_p[{\sf gas}]_b
 		\qquad\text{where $a  \eqdef \st[I_a]_p[{\sf gas}]_a$}\\ 
 	\notag \\ 
