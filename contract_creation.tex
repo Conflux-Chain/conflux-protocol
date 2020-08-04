@@ -128,7 +128,7 @@ The storage cost $s$ is proportional to the code size of the created contract an
 
 	\item a substate $A^{*}$ will be generated to record the storage occupied by code size. the code size collateral will be charged in transaction post processing and will be locked during the lifetime of the created contract. (Conflux will record the owner of code in world-state and refund the collateral when the contract is destroyed):
 	\begin{align}
-		A^{*} \eqdef   A^0 \quad\mbox{except: }A^*_{\bf c}[i]=|\vec{o}|
+		A^{*} \eqdef   A^0 \quad\mbox{except: }A^*_{\bf p}[i]=|\vec{o}|
 	\end{align}
 \end{itemize}
 
