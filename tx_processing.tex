@@ -177,10 +177,16 @@ In this case, the resultant world-state $\st'$ is reverted to $\st$, the nonce o
 	&R_z=2 && R_s=0 && R_{\bf o}=\emptystring && R_{\bf i}=\emptystring
 \end{align}
 
-In other cases, sender $\sender{\tx}$ is responsible for the exception. The resultant world-state is $\st'\eqdef \st^{**}$ and the receipt is composed as follows (where $R'$ refers the receipt of last transaction):
+In other cases, sender $\sender{\tx}$ is responsible for the exception. The resultant world-state is $\st'$ is reverted to $\st^{**}$ and the receipt is composed as follows if sender is non-existent. (i.e. $\st[\sender{\tx}]\neq\varnothing$).
 \begin{align}
 	&R_u=R'_u+\tx_g && R_f=\min\{\tx_g\times\tx_p,\st[\sender{\tx}]_b\} && R_g=\mathsf{GasElig}(\st,\tx) && R_{\bf l}=\emptystring \\
 	&R_z=1 && R_s=0 && R_{\bf o}=\emptystring && R_{\bf i}=\emptystring
+\end{align}
+
+If sender $\sender{\tx}$ is responsible for the exception and the sender is empty, the resultant world-state is $\st'$ is reverted to $\st$. The receipt is composed as follows
+\begin{align}
+	&R_u=R'_u && R_f=0 && R_g=0 && R_{\bf l}=\emptystring \\
+	&R_z=2 && R_s=0 && R_{\bf o}=\emptystring && R_{\bf i}=\emptystring
 \end{align}
 
 
