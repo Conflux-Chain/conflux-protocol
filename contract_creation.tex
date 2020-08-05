@@ -144,8 +144,9 @@ If the contract creation succeeds, we formally specify the resultant state, gas,
 	\st' &\eqdef \st^{**} \quad\mbox{except:} \\
 		\st'[a]_c &\eqdef \kec(\vec{o}) \\ 
 		\st'[a]_{code} &\eqdef (\vec{o},i) \\
-		\st'[i]_{o}    &\eqdef \st^{**}[i]_{o}  + |\vec{o}|\times \collateralperbyte \\
 	\notag \\
+	A^* &\eqdef A^0 \quad\mbox{except:} \\
+	A_{\bf c}[a] &\eqdef |\vec{o}|\times \collateralperbyte \\
 	A' &\eqdef A \Cup A^{*} \\ 
 	z &\eqdef 0
 \end{align}

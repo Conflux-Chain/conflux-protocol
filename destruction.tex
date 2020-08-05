@@ -7,20 +7,16 @@
 The contract destruction function $\Psi(\st,A)$ updates the world state $\st$ and substate $A$ and outputs $(\st',A')$. Formally, function $\Psi$ is defined as follows.
 
 \begin{align}
-	\st^*  &\eqdef \st \qquad \mbox{ except:}\\
-		\st^*[I_a]_o &\eqdef \st[I_a]_o + \left|\st[I_a]_{\bf p}\right|\times \collateralperbyte \\
-		\st^*[a]_b&\eqdef\st[a]_b+\st[I_a]_p[{\sf gas}]_b
-		\qquad\text{where $a  \eqdef \st[I_a]_p[{\sf gas}]_a$}\\ 
-	\notag \\ 
-	\st'  &\eqdef \st^* \qquad \mbox{ except:}\\
+	\st'  &\eqdef \st \qquad \mbox{ except:}\\
 	\st'[r] &\equiv \begin{cases}
-		\varnothing &\text{if}\ \st^*[r] = \varnothing\ \wedge\ \st^*[I_{a}]_{b} = 0\\
+		\varnothing &\text{if}\ \st[r] = \varnothing\ \wedge\ \st[I_{a}]_{b} = 0\\
 		\begin{array}{l}
-			(\st^*[r]_{n}, \st^*[r]_{b} + \st^*[I_{a}]_{b}, \\
-			\quad\st^*[r]_{\mathbf{s}}, \st^*[r]_{c})
-		\end{array} & \text{if}\ r \neq I_{a}\\
-		(\st^*[r]_{n}, 0, \st^*[r]_{\mathbf{s}}, \st^*[r]_{c}) & \text{otherwise}
+			(\st[r]_{n}, \st[r]_{b} + \st[I_{a}]_{b}, \\
+			\quad\st[r]_{\mathbf{s}}, \st[r]_{c})
+		\end{array} & \text{if}\ r \neq I_{a} \; \land \; \mathsf{Type}_r\in \{[0000]_2,[0001]_2,[1000]_2\}\\
+		(\st[r]_{n}, 0, \st[r]_{\mathbf{s}}, \st[r]_{c}) & \text{otherwise}
 	\end{cases}\\
+	\st'[a_{\sf stake}]_{\bf s}[k_3] &\eqdef \st[a_{\sf stake}]_{\bf s}[k_3] - \st[I_a]_{b} \qquad \text{if}\ r = I_{a} \; \lor \; \mathsf{Type}_r\notin \{[0000]_2,[0001]_2,[1000]_2\}   \\
 	\st'[I_{a}]_{b} &\eqdef 0 \\
 		\mbox{where: } &\\ 
 		 r &\eqdef \mst_{\mathbf{s}}[0] \bmod 2^{160} \\

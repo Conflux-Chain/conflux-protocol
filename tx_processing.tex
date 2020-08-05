@@ -195,15 +195,17 @@ If sender $\sender{\tx}$ is responsible for the exception and the sender is empt
 
 The \emph{transaction substate} $A$ is a three tuple which accrues intermediate information during execution. 
 \begin{align}
-	A\eqdef \left( A_{\bf s}, A_{\bf l}, A_{\bf t}\right)
+	A\eqdef \left( A_{\bf s}, A_{\bf l}, A_{\bf c}\right)
 \end{align}
 The components of $A$ are defined as follows: 
 \begin{itemize}[nosep]
 	\item $A_{\bf s}$ is the self-destruct set of accounts that will be discarded upon the transaction's completion.
 
 	\item $A_{\bf l}$ is the log series consisting of indexable ``checkpoints'' in the VM code execution, allowing light clients to track the execution of a contract.
+	
+	\item $A_{\bf c}$ is the set of key-value pairs for the storage collateral changes for each address. Similar with the world state, we write $A_{\bf c}[k]=\varnothing$ for the case that the key $k$ does not exist and regard $A_{\bf c}[k]=\varnothing$ as $A_{\bf c}[k]=0$.
 
-	\item $A_{\bf t}$ is the set of touched accounts, of which the empty ones will be deleted on the transaction's completion.
+	% \item $A_{\bf t}$ is the set of touched accounts, of which the empty ones will be deleted on the transaction's completion.
 \end{itemize}
 
 The empty substate $A^0$, which is also the initial substate, has no self-destructs, no logs, no touched accounts, and zero refund. Formally, $A^0$ is defined as
@@ -215,7 +217,8 @@ For any two substate $A^1$ and $A^2$, the accrued substate $A\eqdef A^1\Cup A^2$
 \begin{align}
 	A_{\bf s} &\eqdef A^1_{\bf s} \cup A^2_{\bf s} \\ 
 	A_{\bf l} &\eqdef A^1_{\bf l} \cdot A^2_{\bf l} \\
-	A_{\bf t} &\eqdef A^1_{\bf t} \cup A^2_{\bf t} 
+	\forall a\in\B_{160},\; A_{\bf c}[a] & \eqdef A^1_{\bf c}[a]+A^2_{\bf c}[a]
+	% A_{\bf t} &\eqdef A^1_{\bf t} \cup A^2_{\bf t} 
 \end{align}
 
 
@@ -252,8 +255,8 @@ Let $i\eqdef \mathsf{ColOwner}(\st,\tx)$ be the address who owns modified storag
 	\end{cases}
 \end{align}
 %
-Notice that $\st^P[i]_o-\st^0[i]_o$ is the incremental storage collateral during execution.
-If $\st^P[i]_o-\st^0[i]_o>\min\{v,\tx_\ell\times 10^{18}/1024\}$, then the execution fails because of exceeding the storage limit, 
+Notice that $A_{\bf c}[i]$ is the incremental storage collateral during execution.
+If $A_{\bf c}[i]>\min\{v,\tx_\ell\times 10^{18}/1024\}$, then the execution fails because of not enough balance for collateral or exceeding the storage limit, 
 and all the modified state will be reverted to $\st^0$, 
 i.e. $\st'\eqdef\st^0$. 
 Let $R'$ denote the receipt of last transaction.
@@ -269,25 +272,19 @@ The storage collateral in account state is also updated at this time.
 
 \begin{align}
 	&\st^1  \eqdef \st^{P} \qquad \mbox{  except:}\\
-	&\forall a \in \B_{160} \text{ with } \st^{P}[a]_o\neq\st^0[a]_o, \\
+	&\forall a \in \B_{160} \text{ with }  A_{\bf c}[a]\neq 0, \\
 	&\quad \begin{cases}
-	\st^1[a]_p[{\sf col}]_b \eqdef \st^{P}[a]_p[{\sf col}]_b - (\st^{P}[a]_o-\st^0[a]_o) & \mbox{if $a$ refers to a contract account, i.e. $\mathsf{Type}_{a}=\typecontract$} \\
-	\st^1[a]_b \eqdef \st^{P}[a]_b - (\st^{P}[a]_o-\st^0[a]_o) & \mbox{if $a$ refers to a normal account, i.e. $\mathsf{Type}_{a}= \typenormal$}
+	\st^1[a]_p[{\sf col}]_b \eqdef \st^{P}[a]_p[{\sf col}]_b + f(a) & \mbox{if $a$ refers to a contract account, i.e. $\mathsf{Type}_{a}=\typecontract$} \\
+	\st^1[a]_b \eqdef \st^{P}[a]_b + f(a) & \mbox{if $a$ refers to a normal account, i.e. $\mathsf{Type}_{a}= \typenormal$}
 	\end{cases}\\
-	&\st^1[a_{\sf stake}]_{\bf s}[k_4] \eqdef \st^P[a_{\sf stake}]_{\bf s}[k_4] + \sum_{a\in \B_{160}}(\st^{P}[a]_o-\st^0[a]_o) \\
+	& \st^1[a]_o \eqdef \st^P[a]_o - f(a)\\ 
+	&\st^1[a_{\sf stake}]_{\bf s}[k_3] \eqdef \st^P[a_{\sf stake}]_{\bf s}[k_3] + \sum_{a\in \B_{160}}(f(a) + A_{\bf c}[a]) \\
+	&\st^1[a_{\sf stake}]_{\bf s}[k_4] \eqdef \st^P[a_{\sf stake}]_{\bf s}[k_4] + \sum_{a\in \B_{160}}A_{\bf c}[a] \\
 	&\mbox{where:}  \\
 	&a_{\sf stake} \eqdef \stakingcontract \\ 
-	&k_4 \eqdef {\sf [total\char`_storage\char`_tokens]_{\sf ch}} 
-\end{align}
-
-\paragraph{Sponsor balance for collateral refund.}
-
-After refunding collateral for storage, the sponsor balance for collateral of all the destructed contract are refunded to their sponsor.
-
-\begin{align}
-	&\st^2  \eqdef \st^1 \qquad \mbox{  except:}\\
-	&\forall a \in \B_{160},\;  \st^2[a]_b\eqdef \st^1[a]_b + \sum_{a'\in A_{\bf s}} \mathbb{I}(\st^1[a']_p[{\sf col}]_a=a)\times \st^1[a']_p[{\sf col}]_b \\
-	&\forall a' \in A_{\bf s},\; \st^2[a']_p[{\sf col}]_b\eqdef 0
+	&k_3 \eqdef {\sf [total\char`_issued\char`_tokens]_{\sf ch}}  \\ 
+	&k_4 \eqdef {\sf [total\char`_storage\char`_tokens]_{\sf ch}}  \\ 
+	& f(a) \eqdef \min\{-A_{\bf c}[a], \st^P_o[a]\}
 \end{align}
 
 
@@ -298,13 +295,55 @@ The \emph{refundable amount of gas} $g^{\dagger}$ is the minimum of the \emph{le
 The refund of gas fee is applied on world-state $\st^{*}$ and results in $\st'\eqdef \Upsilon(\st,\tx)$.
 
 \begin{align}
-	& \st'  \eqdef \st^2 \qquad \mbox{  except:}\\
+	& \st^2  \eqdef \st^1 \qquad \mbox{  except:}\\
 	& \quad \begin{cases} 
-		\st'\left[\tx_a\right]_p[{\sf gas}]_b \eqdef \st^2\left[\tx_a\right]_p[{\sf gas}]_b+g^{\dagger}\times \tx_p 
+		\st^2\left[\tx_a\right]_p[{\sf gas}]_b \eqdef \st^1\left[\tx_a\right]_p[{\sf gas}]_b+g^{\dagger}\times \tx_p 
 		& \mbox{if $\mathsf{GasSpr}(\st,\tx)=\true$}\\
-		\st' \left[\sender{\tx}\right]_b \eqdef \st^2\left[\sender{\tx}\right]_b + g^{\dagger}\times \tx_p 
+		\st^2 \left[\sender{\tx}\right]_b \eqdef \st^1\left[\sender{\tx}\right]_b + g^{\dagger}\times \tx_p 
 		& \mbox{if $\mathsf{GasSpr}(\st,\tx)=\false$}
 	\end{cases} 
+\end{align}
+
+\paragraph{Killed contract processing} The sponsor mechanism and collateral mechanism bring additional tasks in contract destruction. First, for all the killed contract, we refund the collateral for code and storage entries to the corresponding owner. 
+\begin{align}
+	& \st^3  \eqdef \st^2 \qquad \mbox{  except:}\\
+	& \forall a \in A_{\bf s},\; \st^2[a]_{\bf s} \eqdef \varnothing \\
+	&\forall a \in \B_{160} \text{ with }  A^*_{\bf c}[a]\neq 0, \\
+	&\quad \begin{cases}
+	\st^3[a]_p[{\sf col}]_b \eqdef \st^2[a]_p[{\sf col}]_b + f(a) & \mbox{if $a$ refers to a contract account, i.e. $\mathsf{Type}_{a}=\typecontract$} \\
+	\st^3[a]_b \eqdef \st^2[a]_b + f(a) & \mbox{if $a$ refers to a normal account, i.e. $\mathsf{Type}_{a}= \typenormal$}
+	\end{cases}\\
+	& \st^3[a]_o \eqdef \st^2[a]_o - f(a)\\ 
+	&\st^3[a_{\sf stake}]_{\bf s}[k_3] \eqdef \st^2[a_{\sf stake}]_{\bf s}[k_3] + \sum_{a\in \B_{160}}(f(a) + A^*_{\bf c}[a]) \\
+	&\st^3[a_{\sf stake}]_{\bf s}[k_4] \eqdef \st^2[a_{\sf stake}]_{\bf s}[k_4] + \sum_{a\in \B_{160}}A^*_{\bf c}[a] \\
+	& A' \eqdef A \Cup A^* \\ 
+	&\mbox{where:}  \\
+	&a_{\sf stake} \eqdef \stakingcontract \\ 
+	&k_3 \eqdef {\sf [total\char`_issued\char`_tokens]_{\sf ch}}  \\ 
+	&k_4 \eqdef {\sf [total\char`_storage\char`_tokens]_{\sf ch}}  \\ 
+	& f(a) \eqdef \min\{-A^*_{\bf c}[a], \st^2_o[a]\} \\
+	& A^* \eqdef A^0 \qquad \mbox{  except:}\\
+	& \forall a \in \B^{160}, A^*[a]_{\bf c} = - \collateralperbyte \times \sum_{a'\in A_{\bf s}}\left(\mathbb{I}(\st^2[a']_{w}=a) \times |\st^2[a']_{\bf p}| + \sum_{k\in \B_*} \mathbb{I}(\st^2[a']_{\bf s}[k]_o=a)\times 64\right) 
+\end{align}
+
+Then we refund the sponsor balance for all the killed contract. 
+%
+\begin{align}
+	&\st^4  \eqdef \st^3 \qquad \mbox{  except:}\\
+	&\forall a \in \B_{160},\;  \st^4[a]_b\eqdef \st^3[a]_b + \sum_{a'\in A_{\bf s}} \left(\mathbb{I}(\st^3[a']_p[{\sf col}]_a=a)\times \st^3[a']_p[{\sf col}]_b + \mathbb{I}(\st^3[a']_p[{\sf gas}]_a=a)\times \st^3[a']_p[{\sf gas}]_b \right)\\
+	&\forall a' \in A_{\bf s},\; \st^4[a']_p[{\sf col}]_b\eqdef 0 \\
+	&\forall a' \in A_{\bf s},\; \st^4[a']_p[{\sf gas}]_b\eqdef 0
+\end{align}
+
+Then we delete all the contracts and burn all the rest balance 
+%
+\begin{align}
+	&\st' \eqdef \st^4 \qquad \mbox{  except:} \\ 
+	&\forall a \in A_{\bf s}, \st'[a] = \varnothing \\ 
+	&\st'[a_{\sf stake}]_{\bf s}[k_3] \eqdef \st^4[a_{\sf stake}]_{\bf s}[k_3] - \sum_{a\in A_{\bf s}} (\st[a]_b + \st[a]_t) \\
+	&\mbox{where:}  \\
+	&a_{\sf stake} \eqdef \stakingcontract \\ 
+	&k_3 \eqdef {\sf [total\char`_issued\char`_tokens]_{\sf ch}}  
 \end{align}
 
 \paragraph{Transaction Receipt.} 
@@ -315,12 +354,12 @@ Supposing that $R'$ is the receipt of last transaction,
 the receipt of current transaction will be as follows:
 \begin{align}
 	\begin{array}{llll}
-		R_u=R'_u+g' & R_f = (\tx_g-g^{\dagger})\times \tx_p & R_g = \mathsf{GasSpr}(\st,\tx) & R_{\bf l}=A_{\bf l} \\ 
+		R_u=R'_u+g' & R_f = (\tx_g-g^{\dagger})\times \tx_p & R_g = \mathsf{GasSpr}(\st,\tx) & R_{\bf l}=A'_{\bf l} \\ 
 		R_z=z & \multicolumn{3}{l}{R_s = \left\{\begin{array}{ll}
 			\mathsf{ColSpr}(\st,\tx) & \text{if }z=0\\
 			0 & \text{if }z=1
 		\end{array}\right.} \\
-		\multicolumn{4}{l}{R_{\bf o}=\mathsf{ToList}\left(\left\{ (a,\st^P[a]_o - \st^0[a]_o) | a\in \B_{160}\;\wedge\; \st^P[a]_o - \st^0[a]_o>0 \right\}\right)}\\
-		\multicolumn{4}{l}{R_{\bf i}=\mathsf{ToList}\left(\left\{(a,\st^0[a]_o - \st^P[a]_o) | a\in \B_{160}\;\wedge\; \st^P[a]_o - \st^0[a]_o<0  \right\}\right)}
+		\multicolumn{4}{l}{R_{\bf o}=\mathsf{ToList}\left(\left\{ (a,A'_{\bf c}[a]) | a\in \B_{160}\;\wedge\; A_{\bf c}[a]>0 \right\}\right)}\\
+		\multicolumn{4}{l}{R_{\bf i}=\mathsf{ToList}\left(\left\{(a,-A'_{\bf c}[a]) | a\in \B_{160}\;\wedge\; A_{\bf c}[a]<0  \right\}\right)}
 	\end{array}
 \end{align}

@@ -372,7 +372,8 @@ When querying other block numbers, the returned result is always $0$.\\
 \midrule
 \linkdest{SSTORE}{}0x55 & $\op{SSTORE}$ & 2 & 0 & Save word and its owner to storage \\
 % &&&& $\st'[I_{\mathrm{a}}]_{\mathbf{s}}[ \mst_{\mathbf{s}}[0] ] \equiv (\mst_{\mathbf{s}}[1],I_i) $ \\
-&&&&$\st'\eqdef \Phi(\st,I_a,\mst_{\sf s}[0],\mst_{\sf s}[1],I_i)$\\
+&&&&$(\st',A^*)\eqdef \Phi(\st,I_a,\mst_{\sf s}[0],\mst_{\sf s}[1],I_i)$\\
+&&&&$A'\eqdef A\Cup A^*$\\
 &&&&where $\Phi$ is defined in section~\ref{sec:storage_maintain}\\
 \midrule
 \linkdest{JUMP}{}0x56 & $\op{JUMP}$ & 1 & 0 & Alter the program counter. \\
