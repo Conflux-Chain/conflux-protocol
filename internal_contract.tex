@@ -46,14 +46,14 @@ $\tx$ is eligible for the subsidy for gas consumption
 if $\senderf(\tx)$ is in the \textbf{whitelist} of $\contract$
 and the gas fee specified by $\tx$ is within the limit, i.e. $\tx_p\times\tx_g \le \text{\textbf{sponsor limit for gas fee} of $\contract$}$.
 The gas consumption of $\tx$ is paid from the \textbf{sponsor balance for gas} of $\contract$ (if it is sufficient) rather than from the sender's balance,
-and the execution of $\tx$ would fail if the \textbf{sponsor balance for gas fee} cannot afford the gas consumption.
+and the execution of $\tx$ would fail if the \textbf{sponsor balance for gas} cannot afford the gas consumption.
 In case the transaction specifies a gas fee (i.e. $\tx_p\times\tx_g$) greater than $\min\set{\textbf{sponsor limit for gas fee}, \textbf{sponsor balance for gas}}$, there is no subsidy and the sender $\sender{\tx}$ should pay for the gas consumption as usual.
 
 \paragraph{Sponsor for storage collateral.}
 For a contract $\contract$ with non-empty {\bf sponsor for collateral} and a transaction $\tx$ calling $\contract$,
 $\tx$ is eligible for the subsidy for storage usage if: 
 a) its {\bf sender} $\sender{\tx}$ is in the \textbf{whitelist} of $\contract$, and 
-b) its {\bf storageLimit} $\tx_\ell$ costs no more than {\bf sponsor balance for collateral} of $\contract$. 
+b) the {\bf sponsor balance for collateral} of $\contract$ can afford its {\bf storageLimit} $\tx_\ell$ (i.e. $\tx_\ell\times\collateralperbyteline$ \unit).
 If $\tx$ is eligible, then the collateral for storage incurred in the execution of $\tx$ 
 is deducted from \textbf{sponsor balance for collateral} of $\contract$, 
 and the owner of those modified storage entries is set to $\contract$ accordingly.
