@@ -79,31 +79,6 @@ Section~\ref{sec:incentive} describes how to compute the block reward $\reward(\
 	k_3  &\eqdef [{\sf total\char`_issued\char`_tokens}]_{\sf ch}
 \end{align}
 
-\paragraph{Recycle storage for killed account. }
-
-Let $\st^{**}$ be the world state after distributing mining reward. \name finally releases the storage for killed account and refunds corresponding storage collaterals. The transaction receipt $R$ contains a field $R_{\bf l}$ record all the killed address during execution. Let $K$ collects all the killed contracts in the whole epoch, the world state $\st'$ after storage recycle is defined by 
-%
-\begin{align}
-	\st'&\eqdef \st^{**} \qquad \mbox{except:}\\
-	\forall a'\in K, \st'[a']&\eqdef\varnothing \\
-	\st'[a_{\sf stake}]_{\bf s}[k_4] & \eqdef \st^{**}[a_{\sf stake}]_{\bf s}[k_4] - \sum\nolimits_{a\in \B_{160}}f(a) \\
-	\forall a \in \B_{160}
-	 \mbox{ with }& {\sf Type}_a = [0001]_2, \\
-	 \st'[a]_b& \eqdef\st^{**}[a]_b + f(a) \\ 
-	 \st'[a]_o& \eqdef \st^{**}[a]_o - f(a)\\ 
-	\forall a \in \B_{160}
-	 \mbox{ with }&{\sf Type}_a = [1000]_2, \\ 
-	 \st'[a]_p[{\sf col}]_b& \eqdef\st^{**}[a]_p[{\sf col}]_b + f(a) \\
-	 \st'[a]_o& \eqdef \st^{**}[a]_o - f(a)\\
-	\mbox{where:}  \\
-	a_{\sf stake} & \eqdef \stakingcontract \\ 
-	k_4 & \eqdef {\sf [total\char`_storage\char`_tokens]_{\sf ch}} \\ 
-	f(a) &\eqdef \left\{\begin{array}{ll}
-		\sum_{a'\in K}\sum_{k\in \B^*} \mathbb{I}[\st^{**}[a']_{\bf s}[k]_o=a]\times 64 \times \collateralperbyte & {\sf Type}_a \in \{[0001]_2, [1000]_2\} \\ 
-		0 & \mbox{otherwise}
-	\end{array}\right.
-\end{align}
-
 \subsection{Block execution}\label{sec:block_exec}
 The block execution function $\transition_{\sf block}(\st,\block,\vec{L})$ consists of two steps. 
 

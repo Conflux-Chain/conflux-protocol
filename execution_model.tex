@@ -189,9 +189,7 @@ The exceptional halting function $Z$ is defined as:
 		\vee & \left( w =  \op{JUMPI} \quad \wedge \quad \mst_\mathbf{s}[1] \neq 0 \quad \wedge \quad \mst_\mathbf{s}[0] \notin D(I_\mathbf{b})  \right) \quad \\
 		\vee & \left( w = \op{RETURNDATACOPY} \quad \wedge \quad \mst_{\mathbf{s}}[1] + \mst_{\mathbf{s}}[2] > \lVert\mst_{\mathbf{o}}\rVert \right) \quad \\
 		\vee & \lVert\mst_\mathbf{s}\rVert - \popstack_w + \pushstack_w > 1024 \quad\\ 
-		\vee & \left(\neg I_{\mathrm{w}} \quad \wedge \quad W(w, \mst)\right)\quad \\
-		\vee & \left( w = \op{SELFDESTRUCT} \quad \wedge \quad \mathsf{Type}_{\mst_{\mathbf{s}}[0]\mbox{ mod }2^{160}}\notin \set{\typereserved,\typenormal,\typecontract}\right) \\
-		\vee & \left( w = \op{SELFDESTRUCT} \quad \wedge \quad \st[I_a]_o> 0\right)
+		\vee & \left(\neg I_{\mathrm{w}} \quad \wedge \quad W(w, \mst)\right)\quad 
 	\end{array}
 \end{equation}
 where
@@ -327,10 +325,10 @@ When the re-entrance protection is triggered, {\name} virtual machine deals with
 The $\op{SSTORE}$ operation transforms $(\st,A)$ into $(\st',A')$ as follows:
 
 \begin{align}
-	\st'   &\eqdef \Phi(\st,I_a, \mst_{\sf s}[0],\mst_{\sf s}[1],I_i) \\ 
-	A'     &\eqdef A
+	(\st', A^*)   &\eqdef \Phi(\st,I_a, \mst_{\sf s}[0],\mst_{\sf s}[1],I_i) \\ 
+	A'     &\eqdef A \Cup A^*
 \end{align}
-
+%
 where $\Phi$ is defined in section~\ref{sec:storage_maintain}.
 
 In Ethereum, the cost of operation $\op{SSTORE}$ is $G_{sset}=20000$ gas when the storage value is set to non-zero from zero,
@@ -344,9 +342,9 @@ and there is no gas refund either.
 Furthermore, the {\name} ledger $\st$ tracks the owner of every storage entry with non-zero value. 
 The execution substate $A$ records all changes on ownership of storage entries. 
 
-\paragraph{$\op{SUICIDE}$ operation.} When executing the $\op{SUICIDE}$ operation on $(\st,\mu,A,I)$, the destruction process is interrupted and an exception will be generated if the contract has non-zero collateral for storage (i.e. $\st[I_a]_o>0$) or the address receiving refund balance is invalid (i.e. $\mathsf{Type}_{\mst_{\mathbf{s}}[0]\mod2^{160}}\notin\set{\typereserved,\typenormal,\typecontract}$). Otherwise, the $\op{SELFDESTRUCT}$ operation transforms $(\st,A)$ into $(\st',A')$ by function $(\st',A')\eqdef \Psi(\st,A)$, which is defined in section~\ref{sec:contract_destruct}. 
+\paragraph{$\op{SUICIDE}$ operation.} When executing the $\op{SUICIDE}$ operation, if the address receiving refund balance is invalid (i.e. \\$\mathsf{Type}_{\mst_{\mathbf{s}}[0]\mod2^{160}}\notin\set{\typereserved,\typenormal,\typecontract}$) the refund balance will be burnt. Otherwise, the $\op{SELFDESTRUCT}$ operation transforms $(\st,A)$ into $(\st',A')$ following the same steps as Ethereum. 
 
-Compared with Ethereum, Conflux updates the storage collateral of code owner for destructed contract and refunds the sponsor balance for gas at this time. Notice that the sponsor balance for collateral will not be refunded until all the storage collateral has been charged from or refunded to account balance. 
+% Compared with Ethereum, Conflux updates the storage collateral of code owner for destructed contract and refunds the sponsor balance for gas at this time. Notice that the sponsor balance for collateral will not be refunded until all the storage collateral has been charged from or refunded to account balance. 
 
 \paragraph{Subroutine operation.} Ethereum introduces $\op{BEGINSUB}$, $\op{JUMPSUB}$, $\op{RETURNSUB}$ instructions in EIP-2315, which is not listed in its yellowpaper. 
 {\name} implements this instruction with identical behavior as Ethereum.

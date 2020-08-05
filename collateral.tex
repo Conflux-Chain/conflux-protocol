@@ -52,7 +52,7 @@ The world state also maintains the total number of locked tokens for collateral,
 
 \subsection{Storage writing}\label{sec:storage_maintain}
 
-In order to refund the storage collateral to payer when the storage entry is released, Conflux must track the owner for each storage entry. Here we formally describe the storage writing function $\Phi(\st,a,k,v,o)$, which sets storage entry $k$ of account $a$ to value $v$ and address $o$ is the storage owner. It returns updated world-state $\st'$. 
+In order to refund the storage collateral to payer when the storage entry is released, Conflux must track the owner for each storage entry. Here we formally describe the storage writing function $\Phi(\st,a,k,v,o)$, which sets storage entry $k$ of account $a$ to value $v$ and address $o$ is the storage owner. It returns updated world-state $\st'$ and a substate $A$.
 
 \begin{align}
 	\st'   &\eqdef \st \qquad \mbox{  except:}\\ 
@@ -62,8 +62,11 @@ In order to refund the storage collateral to payer when the storage entry is rel
 			\varnothing & v= 0\\
 		\end{array}
 	\right.\\
-	\st'[s_o]_o &\eqdef \st[s_o]_o - 64 \times \collateralperbyte \quad \mbox{ if } v\neq \st[a]_{\bf s}[k]_v \;\wedge\; s_o\neq s'_o \;\wedge\; s_o\neq\varnothing \\ 
-	\st'[s'_o]_o &\eqdef \st[s'_o]_o + 64 \times \collateralperbyte \quad \mbox{ if }v\neq \st[a]_{\bf s}[k]_v \;\wedge\; s_o\neq s'_o \;\wedge\; s'_o\neq\varnothing \\ 
+	A^1 &\eqdef A^0  \qquad \mbox{  except:}\\ 
+	A^1[s_o]_{\bf c} &\eqdef - 64 \times \collateralperbyte \quad \mbox{ if } v\neq \st[a]_{\bf s}[k]_v \;\wedge\; s_o\neq s'_o \;\wedge\; s_o\neq\varnothing \\ 
+	A^2 &\eqdef A^0  \qquad \mbox{  except:}\\ 
+	A^2[s'_o]_{\bf c} &\eqdef 64 \times \collateralperbyte \quad \mbox{ if }v\neq \st[a]_{\bf s}[k]_v \;\wedge\; s_o\neq s'_o \;\wedge\; s'_o\neq\varnothing \\ 
+	A &\eqdef A^1\Cup A^2 \\
 	\text{where:} & \\
 	s &\eqdef \st[a]_{\bf s}[k] \\
 	s' &\eqdef \st'[a]_{\bf s}[k] 
