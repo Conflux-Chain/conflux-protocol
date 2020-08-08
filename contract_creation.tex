@@ -70,7 +70,7 @@ The sender's balance is reduced by the transferred value (there must be enough b
 Thus the mutated state becomes $\st^*$:
 \begin{align}
 	\st^* & \eqdef \st \qquad{ \text{except:}}\\
-	\st^*[a] &\eqdef \account^0 \quad\text{except:}\; \st^*[a]_n=1 \wedge \st^*[a]_b=v+\st[a]_b \wedge \st^*[a]_a=s\\
+	\st^*[a] &\eqdef \account^0 \quad\text{except:}\; \st^*[a]_n=1 \wedge \st^*[a]_b=v+\st[a]_b \wedge \st^*[a]_a=o\\
 	% \left(a, \account_{state}\right)\\
 	\st^*[s] &\eqdef \begin{cases}
 		\varnothing & \mbox{if $\st[s]=\varnothing$ $\land$ $v=0$}\\
