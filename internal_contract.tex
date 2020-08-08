@@ -175,7 +175,7 @@ where $T\eqdef\blockno(\block) - \blockno(\block')$ is the staking period measur
 and $\blockinyear$ is the expected number of blocks generated in $365$ days with the target block time $\blocktime$ seconds.
 % 
 % The commission fee starts from $\commissionpercent\%$ and linearly decreases to $0$ after $\commissiondecayinblock$ blocks (i.e. $\commissiondecayinday$ days in expectation).
-Therefore after the withdrawal $\account$'s total amount of staking funds is decreased by $v$,
+Therefore after the withdrawal, $\account$'s total amount of staking funds is decreased by $v$,
 and its balance is increased by:
 \begin{align}
 	\Delta(\account_b) \eqdef v + \text{Interest issued to $\account$} 
@@ -197,7 +197,7 @@ rather than merely the amount of tokens.
 By relating voting power to committed staking period, the risk of being attacked is also mitigated,
 since the attacker must hold the tokens for a sufficiently long period to obtain enough voting power, which increases the cost of launching an attack.
 
-For every account $\account$, its committed staking time is recorded in the build-in staking contract in the form of 
+For every account $\account$, its committed staking time is recorded in the account field {\bf staking vote info} in the form of 
 {\bf freezing rules},
 where each entry $(v,t)\in \N_{256}\times\N_{64}$ is a promise that the  staking balance of $\account$ must be at least $v$ \unit until the index of block in total order (e.g. $\blockno$) reaches $t$.
 A withdrawal request from $\account$ is invalid if any freezing rule is violated after fulfilling that request.
