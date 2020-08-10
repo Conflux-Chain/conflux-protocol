@@ -130,7 +130,7 @@ The world-state $\st$ never stores the account state $\account_{state}$ equals t
 
 Conflux encodes each component of each account in format of $(k,v)\in \B^*\times \B^*$ respectively. 
 
-\paragraph{Basic entry.} The basic entry stores basic components $\account_{basic}$. Specially, for a non-contract address, Conflux doesn't stores the fields only related to contract, like code hash $\account_c$, contract admin $\account_a$ and sponsor info $\account_p$. Let $\account_{basic\_smp}\eqdef (\account_n, \account_b, \account_t, \account_o, \account_r)$ denote the basic component with only the fields in a normal address. Formally
+\paragraph{Basic entry.} The basic entry stores basic components $\account_{basic}$ if $\account_{basic}\neq \account^0_{basic}$. Specially, for a non-contract address, Conflux doesn't stores the fields only related to contract, like code hash $\account_c$, contract admin $\account_a$ and sponsor info $\account_p$. Let $\account_{basic\_smp}\eqdef (\account_n, \account_b, \account_t, \account_o, \account_r)$ denote the basic component with only the fields in a normal address. Formally
 \begin{align}
 	&k\eqdef \alpha_{addr}\\
 	&v\eqdef \left\{\begin{array}{ll}
@@ -160,19 +160,19 @@ Conflux encodes each component of each account in format of $(k,v)\in \B^*\times
 
 There are five special storage entries storing some statistic information about \name blockchain, which have no storage owner. 
 
-\paragraph{Storage root entry.} The storage root entry stores the storage layout for account $\account$. 
+\paragraph{Storage root entry.} The storage root entry stores the storage layout entry for account $\account$ if $\mathsf{Type}_{\account_{addr}}\in \{\typereserved,\typecontract\}$ and $\account_n\neq 0$. 
 \begin{align}
 	&k\eqdef \alpha_{addr}\cdot [{\sf data}]_{\sf ch}\\
-	&v\eqdef \emptystring
+	&v\eqdef [0000]_{16}
 \end{align}
 
-\paragraph{Code entry.} The code entry stores the component code info $\account_{code}$. 
+\paragraph{Code entry.} The code entry stores the component code info $\account_{code}$ if $\account_{code}\neq  \account^0_{code}$. 
 \begin{align}
 	&k\eqdef \alpha_{addr}\cdot [{\sf code}]_{\sf ch}\cdot \alpha_c  \\
 	&v\eqdef \rlp(\account_{code})
 \end{align}
 
-\paragraph{Staking vote list entry.} The staking vote list entry stores the component staking vote list $\account_{vote}$. 
+\paragraph{Staking vote list entry.} The staking vote list entry stores the component staking vote list $\account_{vote}\neq  \account^0_{vote}$. 
 \begin{align}
 	k&\eqdef \alpha_{addr}\cdot [{\sf vote}]_{\sf ch}  \\
 	v&\eqdef \rlp(\tolist(\account'_{vote}))\\
@@ -180,7 +180,7 @@ There are five special storage entries storing some statistic information about 
 	\account'_{vote} &\eqdef \mbox{$\account_{vote}$ removing all the key $x$ with $\account_{vote}[x]=\account_{vote}[x-1]$}
 \end{align}
 
-\paragraph{Deposit list entry.} The deposit list entry stores the component deposit list $\account_{deposit}$. 
+\paragraph{Deposit list entry.} The deposit list entry stores the component deposit list $\account_{deposit}\neq  \account^0_{deposit}$. 
 \begin{align}
 	&k\eqdef \alpha_{addr}\cdot [{\sf deposit}]_{\sf ch}  \\
 	&v\eqdef \rlp(\account_{deposit})
@@ -188,7 +188,7 @@ There are five special storage entries storing some statistic information about 
 
 \subsubsection{Multi-version Merkle Patricia Trie}
 
-Ethereum collects all the key/value pairs into MPT (Merkle Patricia Trie) and updates it during execution of transactions. However, in a high throughput blockchain system, the MPT may be accessed in a high frequency and hence become a bottleneck of performance. Conflux maintains a \textbf{read-through write-back} cache and commits cached changes to MPT periodically. 
+Ethereum collects all the key/value pairs into MPT (Merkle Patricia Trie) and updates it during execution of transactions. However, in a high throughput blockchain system, the MPT may be accessed in a high frequency and hence become a bottleneck of performance. Conflux maintains a \textbf{read-through write-back} cache and commits cached changes to MPT at the end of epoch execution. 
 
 Formally, at any time, Conflux maintains three key/value sets $T_0,T_1,T_2$, which are called {\bf snapshot}, {\bf intermediate set} and {\bf delta set} respectively. The later one is the cache of the former one. $T_2$ is the only one updated during transaction execution. In order to balance the keys in MPT {\bf delta set} and achieve a high performance, MPT $T_2$ has a different way in computing keys. Let 
 %
@@ -212,9 +212,9 @@ The key is defined as (the symbols are inherited from the previous section)
 
 \paragraph{Delta set.}
 
-After a successful transaction execution, if a state entry is added, updated or removed after execution of one transaction, its newest content will be added to the delta set. Notice that the delta set only compares the state entry before and after a transaction execution. It is not aware of the intermediate steps during transaction execution. 
+After an epoch execution, if a state entry is added, updated or removed, its newest content will be added to the delta set. Notice that the delta set only compares the state entry before and after the epoch execution. It is not aware of the intermediate steps during epoch execution. 
 %
-In case of deleting a state entry, an initialization value for corresponding entry will be added to the delta set representing deletion operation. 
+In case of deleting a state entry, the value of corresponding entry will be set to $\varepsilon$ in the delta set. 
 
 The intermediate MPT will be merged to snapshot MPT every $\snapshotperiod$ epochs. In particular, for some integer $N$, after execution of epoch $\snapshotperiod\cdot N$, \footnote{Since Conflux defers the execution of transactions for $\deferblk$ epochs, the \emph{execution of epoch $i$} means the execution for transactions in epoch $i-\deferblk$. See block component {\bf deferredStateRoot} for details.} Conflux will merge intermediate set $T_1$ to snapshot $T_0$ before computing the state root of pivot block on epoch $\snapshotperiod\cdot N$. Each time the intermediate MPT is merged, Conflux sets current delta MPT as new intermediate set and resets delta set as emptyset. Formally,  
 \begin{align}
