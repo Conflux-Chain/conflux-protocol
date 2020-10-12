@@ -414,7 +414,7 @@ When querying other block numbers, the returned result is always $0$.\\
 \textbf{Value} & \textbf{Mnemonic} & $\popstack$ & $\pushstack$ & $\poprstack$ & $\pushrstack$ & \textbf{Description} \vspace{5pt} \\
 \linkdest{BEGINSUB}{}0x5c & $\op{BEGINSUB}$ & 0 & 0 & 0 & 0 & Marks the entry point to a subroutine. \\
 &&&&&& Attempted execution of a $\op{BEGINSUB}$ causes an abort: \\
-&&&&&& terminate execution with an OOG (\emph{Out Of Gas}) exception. \\
+&&&&&& terminate execution with an \emph{Invalid Sub-entry} exception. \\
 \midrule
 \linkdest{RETURNSUB}{}0x5d & $\op{RETURNSUB}$ & 0 & 0 & 1 & 0 & Returns from a subroutine. \\
 &&&&&&   If  $\lVert \mst_\mathbf{r} \rVert = 0$, then abort:\\

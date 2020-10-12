@@ -64,7 +64,7 @@ In case $\sender{\tx}$ is not in the \textbf{whitelist} or the \textbf{sponsor b
 
 Both sponsorship for gas and for collateral can be updated by calling the SponsorControl contract.
 The current sponsors can call this contract to transfer funds to increase the sponsor balances directly,
-and the current sponsor for gas is also allowed to increase the \textbf{sponsor limit for gas} without transferring new funds.
+and the current sponsor for gas is also allowed to increase the \textbf{sponsor limit for gas} by transferring $\ge 1000$ times of the new limit.
 Other normal accounts can replace the current sponsors by calling this contract and providing more funds for sponsorship.
 
 
@@ -104,7 +104,6 @@ Any long term administration with customized authorization rules should be imple
 i.e. as a specific function that handles destruction requests.
 
 At any time, the administrator $\account$ of an existing contract $\contract$ has the right to request destruction of $\contract$ by calling AdminControl.
-However, the request would be rejected if the collateral for storage of contract $\contract$ is not zero, i.e. $\cfs(\contract)>0$, or $\account$ is not the current administrator of $\contract$.
 If $\account$ is the current administrator of $\contract$ and $\cfs(\contract)=0$, then the destruction request is accepted and processed as follows:
 \begin{enumerate}[nosep]
  	\item the balance of $\contract$ will be refunded to $\account$; 
