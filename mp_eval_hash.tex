@@ -3,6 +3,10 @@
 \section{Multi-point Evaluation Hashing}
 \label{app:mp_eval_hash}
 
+%% Rust code reference
+%  Tag: v1.0-alpha
+%  Base Dir: core/src/pow 
+
 \subsection{Definitions}
 We employ the following definitions:
 
@@ -11,105 +15,102 @@ We employ the following definitions:
 Name & Value & Description \\
 \midrule
 \linkdest{J__wordbytes}{}$J_{wordbytes}$ & $4$  & Bytes in word. \\
-\linkdest{J__datasetinit}{}$J_{datasetinit}$ & $3\times 2^{31}$ & Bytes in dataset at genesis. \\
+% shared.rs:3
+\linkdest{J__datasetinit}{}$J_{datasetinit}$ & $ 2^{32}$ & Bytes in dataset at genesis. \\
+% shared.rs:4
 \linkdest{J__datasetgrowth}{}$J_{datasetgrowth}$ & $2^{24}$ & Dataset growth per stage. \\
-\linkdest{J__cacheinit}{}$J_{cacheinit}$ & $3\times 2^{23}$ & Bytes in cache at genesis. \\
+% shared.rs:5
+\linkdest{J__cacheinit}{}$J_{cacheinit}$ & $2^{24}$ & Bytes in cache at genesis. \\
+% shared.rs:6
 \linkdest{J__cachegrowth}{}$J_{cachegrowth}$ & $2^{16}$ & Cache growth per stage. \\
+% shared.rs:8
 \linkdest{J__stage}{}$J_{stage}$ & $2^{19}$ & Epoches per stage. \\
-\linkdest{J__mixbytes}{}$J_{mixbytes}$ & $128$ & mix length in bytes. \\
+% shared.rs:9
+\linkdest{J__cacherounds}{}$J_{cacherounds}$ & $3$ & Number of rounds in cache production. \\
+% shared.rs:10
+\linkdest{J__mixbytes}{}$J_{mixbytes}$ & $256$ & mix length in bytes. \\
+% shared.rs:23
 \linkdest{J__hashbytes}{}$J_{hashbytes}$ & $64$ & Hash length in bytes. \\
 \linkdest{J__parents}{}$J_{parents}$ & $256$ & Number of parents of each dataset element. \\
-\linkdest{J__cacherounds}{}$J_{cacherounds}$ & $3$ & Number of rounds in cache production. \\
-\linkdest{J__accesses}{}$J_{accesses}$ & $64$ & Number of accesses in hashimoto loop. \\
+% shared.rs:17
+\linkdest{J__pow}{}$J_{pow}$ & $2^{10}$ & Degree of polynomial in multiple point evaluation. \\
+% shared.rs:19
+\linkdest{J__accesses}{}$J_{accesses}$ & $2^5$ & Number of accesses in hashimoto loop. \\
+% shared.rs:18
+\linkdest{J__wrapsize}{}$J_{wrap}$ & $J_{pow}/J_{accesses}$ &  \\
+\linkdest{J__mod}{}$J_{mod}$ & $1032193$ & Modulus in multiple point evaluation. \\
 \bottomrule
 \end{tabu*}
 
 \subsection{Size of dataset and cache}
 The size for the hash function's cache $\mathbf{c} \in \B^*$  and dataset $\mathbf{d} \in \B^*$ depend on the stage, which in turn depends on the block height $\head_{h}$.
-\begin{equation}
+\begin{equation} % cache.rs:44
  E_{stage}(\head_{h}) \eqdef \left\lfloor\frac{\head_{h}}{J_{stage}}\right\rfloor
 \end{equation}
 The size of the dataset growth by $J_{datasetgrowth}$ bytes, and the size of the cache by $J_{cachegrowth}$ bytes, every stage. In order to avoid regularity leading to cyclic behavior, the size must be a prime number. Therefore the size is reduced by a multiple of $J_{mixbytes}$, for the dataset, and $J_{hashbytes}$ for the cache.
 \linkdest{d__size}{}Let $d_{size} = \lVert\dataset \rVert$ be the size of the dataset, 
 which is calculated using
+% shared:52
 \begin{equation}
- d_{size} \eqdef E_{\mathrm{prime}}(J_{datasetinit} + J_{datasetgrowth} \cdot E_{stage} - J_{mixbytes}, J_{mixbytes})
+ d_{size} \eqdef E_{\mathrm{prime}}(J_{datasetinit} + J_{datasetgrowth} \cdot E_{stage}, J_{mixbytes})
 \end{equation}
 The size of the cache, $c_{size}$, is calculated using
+% shared:41
 \begin{equation}
- c_{size} \eqdef E_{\mathrm{prime}}(J_{cacheinit} + J_{cachegrowth} \cdot E_{stage} - J_{hashbytes}, J_{hashbytes})
+ c_{size} \eqdef E_{\mathrm{prime}}(J_{cacheinit} + J_{cachegrowth} \cdot E_{stage}, J_{hashbytes})
 \end{equation}
-where $E_{\mathrm{prime}}(x, y)$ computes the greatest integer $x'$ below $x$ such that $x'/y$ is a prime (given that $x\gg y$).
+where $E_{\mathrm{prime}}(x, y)$ asserts $x/y$ is an integer and returns the largest number $x'$ such that $x'<x$ and $x'=p\cdot y$ for some prime number $p$. 
+% shared:45
+% shared:56
 \begin{equation}
-	E_{\mathrm{prime}}(x, y) \eqdef 
-	\begin{cases}
-		x & \text{if $x / y$ is prime} \\
-		E_{\mathrm{prime}}(x - 2 \cdot y, y) & \text{if $x / y$ is not prime but $x / y \in \N$} \\
-		% 0 & \text{if $x / y<0$ (this case should not happen on valid input $x,y$)} \\
-		E_{\mathrm{prime}}(\lfloor x/y \rfloor\cdot y, y) & \text{otherwise ($x$ is rounded to a multiple of $y$)}
-	\end{cases}
+	E_{\mathrm{prime}}(x, y) \eqdef \max_{x'<x\;\wedge\;\mathsf{IsPrime}(x'/y)} x'
 \end{equation}
 \subsection{Dataset generation}
 In order to generate the dataset we need the cache $\mathbf{c}$, which is an array of bytes. It depends on the cache size  $c_{size}$ and the seed hash $\mathbf{s} \in \B_{256}$.
 \subsubsection{Seed hash}
 The seed hash is different for every stage. For the first stage it is the Keccak-256 hash of a series of 256 bits (32 bytes) of zeros. For every other stage it is always the Keccak-256 hash of the previous seed hash:
+% seed_compute.rs:27
+% seed_compute.rs:45
 \begin{equation}
- \mathbf{s} \eqdef C_{seedhash}(\head_{h})
+ \mathbf{s} \eqdef \kec^{(J_{stage})}(\head_{h})
 \end{equation}
-\begin{equation}
- C_{seedhash}(\head_{h}) \eqdef \begin{cases}
-\mathbf{0}_{256} & \text{if} \quad E_{stage}(\head_{h}) = 0 \quad  \\
-\kec(C_{seedhash}(\head_{h} - J_{stage})) & \text{otherwise}
-\end{cases}
-\end{equation}
-where $\mathbf{0}_{256}$ denotes $256$ bits of zeros.
+where $\mathbf{0}_{256}$ denotes $256$ bits of zeros. (Recalling that $f^{(n)}$ represents calling function $f$ in $n$ times recursively.)
 
 \subsubsection{Cache}
 The cache production process involves using the seed hash to first sequentially filling up $c_{size}$ bytes of memory, then performing $J_{cacherounds}$ passes of the RandMemoHash algorithm created by \cite{lerner2014randmemohash}. The initial cache $\mathbf{c'}$ will be constructed as follows.
 
 Recalling that $\kec512$ denotes the Keccak-512 hash function whose output length is $512$ bits ($64$ single bytes), 
-we define the array $\mathbf{c}_{i}$ as the $i$-th element of the initial cache:
+we define initial cache $\mathbf{c'}$ can be defined as:
 \begin{equation}
-	\mathbf{c}_{i} \eqdef 
-	\begin{cases}
-		\kec512(\mathbf{s}) & \text{if} \quad i = 0 \quad  \\
-		\kec512(\mathbf{c}_{i-1}) & \text{otherwise}
-	\end{cases}
+ \mathbf{c'}[i] \eqdef \kec512^{(i)}(\mathbf{s}), \quad \forall \quad i \in\set{0,1,2,\dots, n-1}
 \end{equation}
-
-Let $n$ denote the number of elements in cache:
+where $n$ denote the number of elements in cache:
 \begin{equation}
 	n \eqdef \left\lfloor c_{size}/J_{hashbytes}\right\rfloor
 \end{equation}
-The initial cache $\mathbf{c'}$ can be defined as:
-\begin{equation}
- \mathbf{c'}[i] \eqdef \mathbf{c}_{i}, \quad \forall \quad i \in\set{0,1,2,\dots, n-1}
-\end{equation}
-
 
 The cache $\mathbf{c}$,
 consisting of $n$ items of $\kec512$ hash values, 
 is calculated by performing $J_{cacherounds}$ rounds of the RandMemoHash algorithm to the initial cache $\mathbf{c'}$:
 \begin{equation}
- \mathbf{c} \eqdef E_{cacherounds}(\mathbf{c'}, J_{cacherounds})
-\end{equation}
-\begin{equation}
-	E_{cacherounds}(\mathbf{x}, y) \eqdef 
-	\begin{cases}
-		\mathbf{x} & \text{if} \quad y = 0 \quad  \\
-		E_\text{\tiny RMH}(\mathbf{x}) & \text{if} \quad y = 1 \quad  \\
-		E_{cacherounds}(E_\text{\tiny RMH}(\mathbf{x}), y -1 ) & \text{otherwise}
-	\end{cases}
+ \mathbf{c} \eqdef E_\text{\tiny RMH}^{(J_{cacherounds})}(\mathbf{c'})
 \end{equation}
 
+
 Every single round of the RandMemoHash algorithm modifies each subset of the cache as follows:
+% cache.rs:110
 \begin{equation}
-	E_\text{\tiny RMH}(\mathbf{x}) \eqdef \big( E_{rmh}(\mathbf{x}, 0), E_{rmh}(\mathbf{x}, 1), ... , E_{rmh}(\mathbf{x}, n - 1) \big)\linkdest{E__cacherounds}{}
+	E_\text{\tiny RMH}(\mathbf{x}) \eqdef \big( E_{rmh}(\mathbf{x}, 0), E_{rmh}(\mathbf{x}, 1), ... , E_{rmh}(\mathbf{x}, n - 1) \big)\linkdest{E__cacherounds}{} \\ 
 \end{equation}
-\begin{multline}
-	E_{rmh}(\mathbf{x}, i) \eqdef \kec512(\mathbf{x'}[(i - 1 + n) \mod n] \oplus \mathbf{x'}[\mathbf{x'}[i][0] \mod n]) \\
-	\text{with} \quad \mathbf{x'} = \mathbf{x} \quad \text{except} \quad \mathbf{x'}[j] = E_{rmh}(\mathbf{x}, j), \quad \forall \quad j < i
-\end{multline}
+\begin{equation}
+	E_{rmh}(\mathbf{x}, i) \eqdef \kec512(\mathbf{x'}[(i - 1 + n) \mod n] \oplus \mathbf{x'}[\mathbf{x'}[i][0] \mod n]) \quad
+	\text{with} \quad \mathbf{x'}[j] = 
+	\begin{cases}
+		E_{rmh}(\mathbf{x}, j) & j<i \\ 
+		\mathbf{x}[j] & j\ge i
+	\end{cases}
+\end{equation}
+where $\mathbf{x'}[i][0]$ denotes the first word of $\mathbf{x'}[i]$.
 
 \subsubsection{Full dataset calculation} \label{app:dataset}
 Essentially, we combine data from $J_{parents}$ pseudorandomly selected cache nodes, and hash that to compute the dataset. The entire dataset is then generated by a number of items, each of $J_{hashbytes}$ bytes in size:
@@ -223,67 +224,83 @@ into the compressed mix $\compressedmix \in \Byte_{32}=\Byte_{\lfloor J_{mixbyte
 \end{equation}
 
 \subsubsection{Multi-point mix}
-The multi-point mix $\mpmix\in \B_{32}$ is calculated from the header $\headernon$
+The multi-point mix $\mpmix\in \B_{64}$ is calculated from the header $\headernon$, $\head_n$
 and $\seedhash$, $\dataset$ as follows:
 \begin{equation}
-	\mpmix \eqdef \mpmix\left( \headernon, \seedhash, \dataset \right)
-	\eqdef  E_{\text{\tiny FNV}-compress}\left(E_{mp-eval}(a,b,c,w,\vec{z}),J_{accesses} \right)
+	\mpmix \eqdef \mpmix\left( \headernon, \head_n, \seedhash, \dataset \right)
+	\eqdef  E_{\text{\tiny FNV}-compress}\left(E_{mp-eval}(a,b,c,w,n_{high},n_{low},\vec{z}),J_{accesses} \right)
 \end{equation}
 with arguments and functions described in the rest of this section.
 
 Interpreting $\headernon$ as a byte array, 
-input arguments $a,b,c,w\in \B_{32}$ are defined as follows:
+input arguments $a,b,c,w\in \B_{64},n_{high},n_{low}\in \N$ are defined as follows:
+% compute.rs:206
 \begin{align}
-	a &\eqdef \headernon[0]\\
-	b &\eqdef \headernon[1]\\
-	c &\eqdef \headernon[2]\\
-	w &\eqdef \headernon[3]
+	a &\eqdef E_{remap}(\headernon[0])\\
+	b &\eqdef E_{remap}(\headernon[1])\\
+	c &\eqdef E_{remap\_c}(a,b,\headernon[2])\\
+	w &\eqdef E_{remap}(\headernon[3])\\
+	n_{high} &\eqdef \lfloor(\head_n \mod 2^{64})/J_{wrapsize}\rfloor \\
+	n_{low} &\eqdef \head_n \mod J_{wrapsize}
 \end{align}
-whereas the last argument $\vec{z}$ is an array of $J_{accesses}$ items drawn from $\B_{32}$.
+where 
+% compute.rs:161
+\begin{align}
+	E_{remap}(h) &\eqdef 11^{\argmax_{x| {h\mod (J_{mod}-2) + 1}\;\land\;\mathsf{gcd}(x,J_{mod}-1)=1} x}  \mod J_{mod} \\
+	E_{remap\_c}(a,b,h) &\eqdef \argmin_{x\ge h \;\land\; J_{mod}\nmid b^2-4a\cdot E_{remap}(x)} x
+\end{align}
+
+The last argument $\vec{z}$ is an array of $J_{pow}=J_{accesses}\times J_{wrapsize}$ items drawn from $\B_{32}$.
 More specifically, $\vec{z}[i]$ is defined as:
-\begin{equation}
-	\vec{z}[i] \eqdef 
-	E_{parity}\left(E_{mp-accesses}(\mathbf{d}, \mathbf{m}_0, \seedhash, i, 0)\right),
-	\quad \forall \quad 0\le i \le J_{accesses}-1
-\end{equation}
-where the $E_{mp-accesses}$ function is defined as:
-\begin{equation}
-	E_{mp-accesses}(\mathbf{d}, \mathbf{m}, \mathbf{s}, i, j)
-	\eqdef 
- 	\begin{cases}
-		E_{mixdataset}(\mathbf{d}, \mathbf{m},  \mathbf{s}, i) & \text{if} \quad j \ge i \\
-		E_{mp-accesses}\big(\dataset, E_{mixdataset}(\mathbf{d}, \mathbf{m}, \mathbf{s}, j), \mathbf{s}, i, j + 1\big) & \text{otherwise}
-	\end{cases}
-\end{equation}
-and the $E_{parity}$ function is defined over $\Byte_{J_{mixbytes}} \to \B_{32}$ and 
-it simply returns the parity of all items in the input array at word level (i.e. realizing $\Byte_{J_{mixbytes}}$ as ${\lfloor J_{mixbytes}/J_{wordbytes}\rfloor}$ elements each of $J_{wordbytes}$ bytes),  
-formally defined as:
-\begin{equation}
-	E_{parity}(\vec{m}) \eqdef \oplus_{i=0}^{\lfloor J_{mixbytes}/J_{wordbytes}\rfloor -1} \vec{m}[i]
-\end{equation}
+% compute.rs:212
+\begin{multline}
+	\vec{z}[i\cdot J_{wrapsize} + j] \eqdef \left(E_{\text{\tiny Sip},2,j+4}\left((n_{high}\cdot J_{wrapsize}+i)\mod 2^{64}\right)\mod 2^{64}\right) \mod J_{mod} 
+	\\ \forall 0\le i<J_{accesses}, 0\le j < J_{wrapsize}
+	% E_{parity}\left(E_{mp-accesses}(\mathbf{d}, \mathbf{m}_0, \seedhash, i, 0)\right),
+	% \quad \forall \quad 0\le i \le J_{accesses}-1
+\end{multline}
+where the $E_{\text{\tiny Sip},c,d}$ refers the SipHash-$c$-$d$ function with a different key initialization process by $v_i \eqdef \headernon[i]$ ($i\in\{0,1,2,3\}$). See~\cite{aumasson2012siphash} for more details about SipHash function.
+
+% $E_{mp-accesses}$ function is defined as:
+% \begin{equation}
+% 	E_{mp-accesses}(\mathbf{d}, \mathbf{m}, \mathbf{s}, i, j)
+% 	\eqdef 
+%  	\begin{cases}
+% 		E_{mixdataset}(\mathbf{d}, \mathbf{m},  \mathbf{s}, i) & \text{if} \quad j \ge i \\
+% 		E_{mp-accesses}\big(\dataset, E_{mixdataset}(\mathbf{d}, \mathbf{m}, \mathbf{s}, j), \mathbf{s}, i, j + 1\big) & \text{otherwise}
+% 	\end{cases}
+% \end{equation}
+% and the $E_{parity}$ function is defined over $\Byte_{J_{mixbytes}} \to \B_{32}$ and 
+% it simply returns the parity of all items in the input array at word level (i.e. realizing $\Byte_{J_{mixbytes}}$ as ${\lfloor J_{mixbytes}/J_{wordbytes}\rfloor}$ elements each of $J_{wordbytes}$ bytes),  
+% formally defined as:
+% \begin{equation}
+% 	E_{parity}(\vec{m}) \eqdef \oplus_{i=0}^{\lfloor J_{mixbytes}/J_{wordbytes}\rfloor -1} \vec{m}[i]
+% \end{equation}
 
 The $E_{mp-eval}$ function evaluates the polynomial $E_{polynomial}$ on multiple points $\vec{x}[i]$ for $i\in \set{0,1,\dots, J_{accesses}-1}$ and returns the concatenation of $J_{accesses}$ elements drawn from $\B_{32}$ as follows:
+% compute.rs:242
 \begin{equation}
-	E_{mp-eval}(a,b,c,w,\vec{z}) \eqdef 
+	E_{mp-eval}(a,b,c,w,n_{high},n_{low},\vec{z}) \eqdef 
 	E_{polynomial}\left(\vec{x}[0]\right) \circ E_{polynomial}\left(\vec{x}[1]\right) \circ \cdots \circ
 	E_{polynomial}\left(\vec{x}[J_{accesses-1}]\right)
 \end{equation}
 where $\vec{x}$ is an array of $32$-bit integers defined as:
-\begin{equation}
-	\vec{x}[i] \eqdef a+b\cdot w^i + c\cdot w^{2i}, \quad \forall \quad 0\le i \le J_{accesses}-1
-\end{equation}
+% compute.rs:226-251
+\begin{align}
+	\vec{x}[i] &\eqdef a+b\cdot w^{i\cdot J_{wrapsize} + n_{low}} + c\cdot w^{2\cdot (i\cdot J_{wrapsize} + n_{low})}, \quad \forall \quad 0\le i \le J_{accesses}-1 
+\end{align}
 and the $E_{polynomial}$ function is a polynomial with coefficients specified by $\vec{z}$:
 \begin{equation}
-	E_{polynomial}(x) \eqdef \left(\sum_{j=0}^{J_{accesses}-1} \vec{z}[j]\cdot x^j\right) \mod (10^9+7)
+	E_{polynomial}(x) \eqdef \left(\sum_{j=0}^{J_{pow}-1} \vec{z}[j]\cdot x^j\right) \mod J_{mod}
 \end{equation}
 
 The FNV-compress function $E_{\text{\tiny FNV}-compress}$ is defined over $\left(\B_{32}\right)^* \times \N \to \B_{32}$ 
-and used to compress an array of $\B_{32}$ elements into a single $\B_{32}$ element:
+and used to compress an array of $\B_{64}$ elements into a single $\B_{64}$ element:
 \begin{equation}
 	E_{\text{\tiny FNV}-compress}(\vec{m},i) \eqdef 
 	\begin{cases}
-		\vec{0}_{32} & \text{if} \quad i < 1 \\
-		E_\text{\tiny FNV}\left( 
+		\vec{0}_{64} & \text{if} \quad i < 1 \\
+		E_\text{\tiny FNV64}\left( 
 		E_{\text{\tiny FNV}-compress}(\vec{m},i-1) ,
 		\vec{m}[i-1]\right)
 		& \text{otherwise}
