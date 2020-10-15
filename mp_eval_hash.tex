@@ -3,6 +3,10 @@
 \section{Multi-point Evaluation Hashing}
 \label{app:mp_eval_hash}
 
+%% Rust code reference
+%  Tag: v1.0-alpha
+%  Base Dir: core/src/pow 
+
 \subsection{Definitions}
 We employ the following definitions:
 
@@ -11,281 +15,283 @@ We employ the following definitions:
 Name & Value & Description \\
 \midrule
 \linkdest{J__wordbytes}{}$J_{wordbytes}$ & $4$  & Bytes in word. \\
-\linkdest{J__datasetinit}{}$J_{datasetinit}$ & $3\times 2^{31}$ & Bytes in dataset at genesis. \\
+% shared.rs:3
+\linkdest{J__datasetinit}{}$J_{datasetinit}$ & $ 2^{32}$ & Bytes in dataset at genesis. \\
+% shared.rs:4
 \linkdest{J__datasetgrowth}{}$J_{datasetgrowth}$ & $2^{24}$ & Dataset growth per stage. \\
-\linkdest{J__cacheinit}{}$J_{cacheinit}$ & $3\times 2^{23}$ & Bytes in cache at genesis. \\
+% shared.rs:5
+\linkdest{J__cacheinit}{}$J_{cacheinit}$ & $2^{24}$ & Bytes in cache at genesis. \\
+% shared.rs:6
 \linkdest{J__cachegrowth}{}$J_{cachegrowth}$ & $2^{16}$ & Cache growth per stage. \\
+% shared.rs:8
 \linkdest{J__stage}{}$J_{stage}$ & $2^{19}$ & Epoches per stage. \\
-\linkdest{J__mixbytes}{}$J_{mixbytes}$ & $128$ & mix length in bytes. \\
+% shared.rs:9
+\linkdest{J__cacherounds}{}$J_{cacherounds}$ & $3$ & Number of rounds in cache production. \\
+% shared.rs:10
+\linkdest{J__mixbytes}{}$J_{mixbytes}$ & $256$ & mix length in bytes. \\
+% shared.rs:23
 \linkdest{J__hashbytes}{}$J_{hashbytes}$ & $64$ & Hash length in bytes. \\
 \linkdest{J__parents}{}$J_{parents}$ & $256$ & Number of parents of each dataset element. \\
-\linkdest{J__cacherounds}{}$J_{cacherounds}$ & $3$ & Number of rounds in cache production. \\
-\linkdest{J__accesses}{}$J_{accesses}$ & $64$ & Number of accesses in hashimoto loop. \\
+% shared.rs:17
+\linkdest{J__pow}{}$J_{pow}$ & $2^{10}$ & Degree of polynomial in multiple point evaluation. \\
+% shared.rs:19
+\linkdest{J__accesses}{}$J_{accesses}$ & $2^5$ & Number of accesses in hashimoto loop. \\
+% shared.rs:18
+\linkdest{J__wrapsize}{}$J_{wrapsize}$ & $J_{pow}/J_{accesses}$ &  \\
+\linkdest{J__mod}{}$J_{mod}$ & $1032193$ & Modulus in multiple point evaluation. \\
 \bottomrule
 \end{tabu*}
 
-\subsection{Size of dataset and cache}
+\subsection{Size of Dataset and Cache}
 The size for the hash function's cache $\mathbf{c} \in \B^*$  and dataset $\mathbf{d} \in \B^*$ depend on the stage, which in turn depends on the block height $\head_{h}$.
-\begin{equation}
+\begin{equation} % cache.rs:44
  E_{stage}(\head_{h}) \eqdef \left\lfloor\frac{\head_{h}}{J_{stage}}\right\rfloor
 \end{equation}
 The size of the dataset growth by $J_{datasetgrowth}$ bytes, and the size of the cache by $J_{cachegrowth}$ bytes, every stage. In order to avoid regularity leading to cyclic behavior, the size must be a prime number. Therefore the size is reduced by a multiple of $J_{mixbytes}$, for the dataset, and $J_{hashbytes}$ for the cache.
 \linkdest{d__size}{}Let $d_{size} = \lVert\dataset \rVert$ be the size of the dataset, 
 which is calculated using
+% shared:52
 \begin{equation}
- d_{size} \eqdef E_{\mathrm{prime}}(J_{datasetinit} + J_{datasetgrowth} \cdot E_{stage} - J_{mixbytes}, J_{mixbytes})
+ d_{size} \eqdef E_{\mathrm{prime}}(J_{datasetinit} + J_{datasetgrowth} \cdot E_{stage}, J_{mixbytes})
 \end{equation}
 The size of the cache, $c_{size}$, is calculated using
+% shared:41
 \begin{equation}
- c_{size} \eqdef E_{\mathrm{prime}}(J_{cacheinit} + J_{cachegrowth} \cdot E_{stage} - J_{hashbytes}, J_{hashbytes})
+ c_{size} \eqdef E_{\mathrm{prime}}(J_{cacheinit} + J_{cachegrowth} \cdot E_{stage}, J_{hashbytes})
 \end{equation}
-where $E_{\mathrm{prime}}(x, y)$ computes the greatest integer $x'$ below $x$ such that $x'/y$ is a prime (given that $x\gg y$).
+where $E_{\mathrm{prime}}(x, y)$ asserts $x/y$ is an integer and returns the largest number $x'$ such that $x'<x$ and $x'=p\cdot y$ for some prime number $p$. 
+% shared:45
+% shared:56
 \begin{equation}
-	E_{\mathrm{prime}}(x, y) \eqdef 
-	\begin{cases}
-		x & \text{if $x / y$ is prime} \\
-		E_{\mathrm{prime}}(x - 2 \cdot y, y) & \text{if $x / y$ is not prime but $x / y \in \N$} \\
-		% 0 & \text{if $x / y<0$ (this case should not happen on valid input $x,y$)} \\
-		E_{\mathrm{prime}}(\lfloor x/y \rfloor\cdot y, y) & \text{otherwise ($x$ is rounded to a multiple of $y$)}
-	\end{cases}
+	E_{\mathrm{prime}}(x, y) \eqdef \max_{x'<x\;\wedge\;\mathsf{IsPrime}(x'/y)} x'
 \end{equation}
-\subsection{Dataset generation}
-In order to generate the dataset we need the cache $\mathbf{c}$, which is an array of bytes. It depends on the cache size  $c_{size}$ and the seed hash $\mathbf{s} \in \B_{256}$.
+\subsection{Stage Dataset Generation}
+In order to generate the dataset $\dataset$ for stage $J_{stage}$, we need the cache $\mathbf{c}$, which is an array of bytes. It depends on the cache size  $c_{size}$ and the seed hash $\mathbf{s} \in \B_{256}$.
 \subsubsection{Seed hash}
 The seed hash is different for every stage. For the first stage it is the Keccak-256 hash of a series of 256 bits (32 bytes) of zeros. For every other stage it is always the Keccak-256 hash of the previous seed hash:
+% seed_compute.rs:27
+% seed_compute.rs:45
 \begin{equation}
- \mathbf{s} \eqdef C_{seedhash}(\head_{h})
+ \mathbf{s} \eqdef \kec^{(J_{stage})}(\mathbf{0}_{256})
 \end{equation}
-\begin{equation}
- C_{seedhash}(\head_{h}) \eqdef \begin{cases}
-\mathbf{0}_{256} & \text{if} \quad E_{stage}(\head_{h}) = 0 \quad  \\
-\kec(C_{seedhash}(\head_{h} - J_{stage})) & \text{otherwise}
-\end{cases}
-\end{equation}
-where $\mathbf{0}_{256}$ denotes $256$ bits of zeros.
+where $\mathbf{0}_{256}$ denotes $256$ bits of zeros. (Recalling that $f^{(n)}$ represents calling function $f$ in $n$ times recursively.)
 
 \subsubsection{Cache}
 The cache production process involves using the seed hash to first sequentially filling up $c_{size}$ bytes of memory, then performing $J_{cacherounds}$ passes of the RandMemoHash algorithm created by \cite{lerner2014randmemohash}. The initial cache $\mathbf{c'}$ will be constructed as follows.
 
 Recalling that $\kec512$ denotes the Keccak-512 hash function whose output length is $512$ bits ($64$ single bytes), 
-we define the array $\mathbf{c}_{i}$ as the $i$-th element of the initial cache:
+we define initial cache $\mathbf{c'}$ can be defined as:
 \begin{equation}
-	\mathbf{c}_{i} \eqdef 
-	\begin{cases}
-		\kec512(\mathbf{s}) & \text{if} \quad i = 0 \quad  \\
-		\kec512(\mathbf{c}_{i-1}) & \text{otherwise}
-	\end{cases}
+ \mathbf{c'}[i] \eqdef \kec512^{(i)}(\mathbf{s}), \quad \forall \quad i \in\set{0,1,2,\dots, n-1}
 \end{equation}
-
-Let $n$ denote the number of elements in cache:
+where $n$ denote the number of elements in cache:
 \begin{equation}
-	n \eqdef \left\lfloor c_{size}/J_{hashbytes}\right\rfloor
+	n \eqdef  c_{size}/J_{hashbytes}
 \end{equation}
-The initial cache $\mathbf{c'}$ can be defined as:
-\begin{equation}
- \mathbf{c'}[i] \eqdef \mathbf{c}_{i}, \quad \forall \quad i \in\set{0,1,2,\dots, n-1}
-\end{equation}
-
 
 The cache $\mathbf{c}$,
 consisting of $n$ items of $\kec512$ hash values, 
 is calculated by performing $J_{cacherounds}$ rounds of the RandMemoHash algorithm to the initial cache $\mathbf{c'}$:
 \begin{equation}
- \mathbf{c} \eqdef E_{cacherounds}(\mathbf{c'}, J_{cacherounds})
+ \mathbf{c} \eqdef E_\text{\tiny RMH}^{(J_{cacherounds})}(\mathbf{c'})
 \end{equation}
-\begin{equation}
-	E_{cacherounds}(\mathbf{x}, y) \eqdef 
-	\begin{cases}
-		\mathbf{x} & \text{if} \quad y = 0 \quad  \\
-		E_\text{\tiny RMH}(\mathbf{x}) & \text{if} \quad y = 1 \quad  \\
-		E_{cacherounds}(E_\text{\tiny RMH}(\mathbf{x}), y -1 ) & \text{otherwise}
-	\end{cases}
-\end{equation}
+
 
 Every single round of the RandMemoHash algorithm modifies each subset of the cache as follows:
-\begin{equation}
-	E_\text{\tiny RMH}(\mathbf{x}) \eqdef \big( E_{rmh}(\mathbf{x}, 0), E_{rmh}(\mathbf{x}, 1), ... , E_{rmh}(\mathbf{x}, n - 1) \big)\linkdest{E__cacherounds}{}
-\end{equation}
-\begin{multline}
-	E_{rmh}(\mathbf{x}, i) \eqdef \kec512(\mathbf{x'}[(i - 1 + n) \mod n] \oplus \mathbf{x'}[\mathbf{x'}[i][0] \mod n]) \\
-	\text{with} \quad \mathbf{x'} = \mathbf{x} \quad \text{except} \quad \mathbf{x'}[j] = E_{rmh}(\mathbf{x}, j), \quad \forall \quad j < i
-\end{multline}
+% cache.rs:110
+\begin{align}
+	E_\text{\tiny RMH}(\mathbf{x}) &\eqdef \big( E_{rmh}(\mathbf{x}, 0), E_{rmh}(\mathbf{x}, 1), ... , E_{rmh}(\mathbf{x}, n - 1) \big)\linkdest{E__cacherounds}{}  \\
+	E_{rmh}(\mathbf{x}, i) &\eqdef \kec512(\mathbf{x'}[(i - 1 + n) \mod n] \oplus \mathbf{x'}[\mathbf{x'}[i][0] \mod n]) \quad
+	\text{with} \quad \mathbf{x'}[j] = 
+	\begin{cases}
+		E_{rmh}(\mathbf{x}, j) & j<i \\ 
+		\mathbf{x}[j] & j\ge i
+	\end{cases}
+\end{align}
+where $\mathbf{x'}[i][0]$ denotes the first word of $\mathbf{x'}[i]$.
 
 \subsubsection{Full dataset calculation} \label{app:dataset}
-Essentially, we combine data from $J_{parents}$ pseudorandomly selected cache nodes, and hash that to compute the dataset. The entire dataset is then generated by a number of items, each of $J_{hashbytes}$ bytes in size:
+Essentially, we combine data from $J_{parents}$ pseudorandomly selected cache nodes, and hash that to compute the dataset. The entire dataset $\dataset$ is then generated by a number of items, each of $J_{hashbytes}$ bytes in size:
+% compute.rs:409
 \begin{equation}
-\dataset[i] \eqdef E_{datasetitem}(\mathbf{c}, i), \quad \forall \quad i < \left\lfloor\frac{d_{size}}{J_{hashbytes}}\right\rfloor
+\dataset[i] \eqdef E_{datasetitem}(\mathbf{c}, i) \quad \forall \quad 0\le i < d_{size}/J_{hashbytes} 
 \end{equation}
-In order to calculate the single item we use an algorithm $E_\text{\tiny FNV}:\B_{32}\times\B_{32} \to \B_{32}$ inspired by the FNV hash \cite{FowlerNollVo1991FNVHash} in some cases as a non-associative substitute for XOR.
+In order to calculate the single item we use an algorithm $\fnv:\N_{32}\times\N_{32} \to \N_{32}$ inspired by the FNV hash \cite{FowlerNollVo1991FNVHash} in some cases as a non-associative substitute for XOR.
 \begin{equation}
-	E_\text{\tiny FNV}(\mathbf{x}, \mathbf{y}) \eqdef \left( (\mathbf{x} \times \mathrm{0x01000193}) \oplus \mathbf{y}\right) \mod 2^{32}
+	\fnv(\mathbf{x}, \mathbf{y}) \eqdef \left( (\mathbf{x} \times \mathrm{0x01000193}) \oplus \mathbf{y}\right) \mod 2^{32}
 \end{equation}
+When $\fnv$ receives input in $\B_{32}$, it interprets it as a little-endian encoding integer in $\N_{32}$.
+
 The single item of the dataset can now be calculated by iteratively mixing items from the cache $\mathbf{c}$ as follows:
+% compute.rs:430
 \begin{equation}
  E_{datasetitem}(\mathbf{c}, i) \eqdef 
- \kec512\Big(E_{parents}\big(\mathbf{c}, i, 0, \kec512(\mathbf{c}[i \mod n ] \oplus i)\big)\Big)
+ \kec512\Big(\mathbf{m}_{J_{parents}}\Big)
 \end{equation}
-\begin{equation}
-  E_{parents}(\mathbf{c}, i, p, \mathbf{m}) \eqdef \begin{cases}
-E_{parents}\big(\mathbf{c}, i, p +1, E_{mix}(\mathbf{m}, \mathbf{c}, i, p)\big) & \text{if} \quad p < J_{parents} -1 \\
-E_{mix}(\mathbf{m}, \mathbf{c}, i, p) & \text{otherwise}
-\end{cases}
-\end{equation}
-\begin{equation}
- E_{mix}(\mathbf{m}, \mathbf{c}, i, p) \eqdef E_\text{\tiny FNV}^*\Big(\mathbf{m}, \mathbf{c}[E_\text{\tiny FNV}(i \oplus p, ~ \mathbf{m}\big[p \mod \lfloor J_{hashbytes} / J_{wordbytes} \rfloor ]) \mod n \big] \Big)
-\end{equation}
-where $\mathbf{m}\in\B_{512}$ should be interpreted as an array of $\lfloor J_{hashbytes} / J_{wordbytes} \rfloor$ words (each of $J_{wordbytes}$ bytes, i.e. $32$ bits),
-and $E_\text{\tiny FNV}^*$ denotes the element-wise invocation of $E_\text{\tiny FNV}$.
+where $\mathbf{m}_{j}$ is updated from $\mathbf{m}_{j-1}$ by function $E_{mix}$. $\mathbf{m}_0$ is initialized with the hash value computed from cache $\mathbf{c}$ and index $i$.
+\begin{align}
+	% compute.rs:420-427
+	\mathbf{m}_j &\eqdef E_{mix}(\mathbf{c}, i, \mathbf{m}_{j-1},j-1) \quad \forall 1\le j \le J_{parents} \\
+	% compute.rs:411-416
+	\mathbf{m}_0 &\eqdef \kec512(\mathbf{c}[i\mod n] \oplus i) \\
+	E_{mix}(\mathbf{c}, i, \mathbf{m},p) & \eqdef \fnv^*\Big(\mathbf{m}, \mathbf{c}[\fnv(i \oplus p, ~ \mathbf{m}\big[p \mod J_{hashbytes} / J_{wordbytes} ]) \mod n \big] \Big)
+\end{align}
+Here, $i$ is regarded a 512-bit string in little-endian
+and $\fnv^*$ denotes the element-wise invocation of $\fnv$ over $J_{hashbytes}$-bit string, which interpreted as an array of words in little-endian. 
 
 \subsection{Proof-of-work function}
 \label{appsec:pow}
 
-Essentially, we maintain a ``mix'' of $J_{mixbytes}$ bytes wide, and repeatedly sequentially fetch $J_{mixbytes}$ bytes from the full dataset and use the $E_\text{\tiny FNV}$ function to combine it with the mix. 
+Essentially, we maintain a ``mix'' of $J_{mixbytes}$ bytes wide, and repeatedly sequentially fetch $J_{mixbytes}$ bytes from the full dataset and use the $\fnv$ function to combine it with the mix. 
 $J_{mixbytes}$ bytes of sequential access are used so that each round of the algorithm always fetches a full page from RAM, minimizing translation lookaside buffer misses which ASICs would theoretically be able to avoid.
 
 If the output of this algorithm is below the desired target, then the nonce is valid. Note that the extra application of $\kec$ at the end ensures that there exists an intermediate nonce which can be provided to prove that at least a small amount of work was done; this quick outer PoW verification can be used for anti-DDoS purposes. It also serves to provide statistical assurance that the result is an unbiased, 256 bit number.
 
-The $\mpethash$ function takes $\headernon$, which is the hash of the header excluding the {\bf mixHash} and  {\bf nonce} fields,
+The $\mpethash$ function takes $\headernon$, which is the hash of the header excluding the {\bf nonce} fields,
 i.e. $\headernon\eqdef \kec\left(\rlp( \head_{-n} )\right)$,
 together with the nonce $\head_{n}$
 and the dataset $\dataset$ from \cref{app:dataset} as input.
-The output of $\mpethash$ consists of an array with the compressed mix $\compressedmix$ as its first item and the Keccak-256 hash of the concatenation of the seed hash $\seedhash\in \B_{512}$, the compressed mix $\compressedmix\in \B_{256}$,
-and the compressed multi-point mix $\mpmix\in\B_{32}$ as the second item:
+The output of $\mpethash$ is the Keccak-256 hash of the concatenation of the seed hash $\seedhash\in \B_{512}$ and the compressed mix $\compressedmix\in \B_{256}$:
 \begin{equation}
 	\mpethash(\headernon, \head_{n},\dataset) \eqdef 
-	\set{\compressedmix, \kec\left(\seedhash \circ \compressedmix \circ \mpmix \right)}
-\end{equation}
-
-\subsubsection{Seed hash}
-The seed hash $\seedhash\in \B_{512}=\Byte_{J_{hashbytes}}$ is defined on $\headernon$ and $\head_{n}$ as follows:
-\begin{equation}
- \seedhash \eqdef 
- \seedhash(\headernon, \head_{n}) \eqdef \kec512\left(\headernon \circ E_{revert}(\head_{n})\right)
-\end{equation}
-where $E_{revert}(\head_{n})$ returns the reverted bytes sequence of the nonce $\head_{n}$ as $E_{revert}(\head_{n})[i] \eqdef \head_{n}\left[~\lVert \head_{n} \rVert -i~\right]$,
-so that the $64$-bit nonce in big-endian order is changed to little-endian representation.
-
-\subsubsection{Compressed mix}
-The compressed mix $\compressedmix \in \B_{256}$ is obtained from the seed hash $\seedhash$ and the dataset $\dataset$:
-\begin{equation}\label{eq:compress}
- \compressedmix \eqdef 
- \compressedmix\big(\seedhash,\dataset) \eqdef E_{compress}(E_{accesses}(\dataset, \mathbf{m}_0, \seedhash, 0), 0\big)
-\end{equation}
-where $\mathbf{m}_0$ and $E_{accesses}$, $E_{compress}$ are defined as follows.
-
-The initial mix $\mathbf{m}_0$ is an array of $\lfloor J_{mixbytes} / J_{wordbytes} \rfloor$ many $32$-bit (i.e. $4$-byte) words 
-obtained by replicating the seed hash $\seedhash$ for $n_{mix}$ times, 
-with $n_{mix}$ defined as:
-\begin{equation}
-	n_{mix}\eqdef  \left\lfloor \frac{J_{mixbytes}}{J_{hashbytes}}\right\rfloor
-\end{equation}
-Formally, the initial mix 
-$\mathbf{m}_0 \in \B_{512 \cdot n_{mix}}
-=\left(\Byte_{J_{hashbytes}}\right)^{n_{mix}}$ is defined as:
-\begin{equation}
-	\mathbf{m}_0 \eqdef \underbrace{\seedhash \circ \cdots \circ \seedhash}_{\text{$n_{mix}$ many copies of $\seedhash$}}
-\end{equation}
-
-In order to add random dataset nodes to the mix, the $E_{accesses}$ function is used:
-\begin{equation}
- 	E_{accesses}(\mathbf{d}, \mathbf{m}, \mathbf{s}, i) 
- 	\eqdef 
- 	\begin{cases}
-		E_{mixdataset}(\mathbf{d}, \mathbf{m},  \mathbf{s}, i) & \text{if} \quad i = J_{accesses} -1 \\
-		E_{accesses}\big(\dataset, E_{mixdataset}(\mathbf{d}, \mathbf{m}, \mathbf{s}, i), \mathbf{s}, i + 1\big) & \text{otherwise}
-	\end{cases}
-\end{equation}
-\begin{equation}
- E_{mixdataset}(\mathbf{d}, \mathbf{m}, \mathbf{s}, i) \eqdef E_\text{\tiny FNV}^*\big(\mathbf{m}, E_{newdata}(\mathbf{d}, \mathbf{m}, \mathbf{s}, i)\big)
-\end{equation}
-where $E_\text{\tiny FNV}^*$ denotes the element-wise invocation of $E_\text{\tiny FNV}$ on $32$-bit elements,
-and $E_{newdata}$ returns an array consisting of $n_{mix}$ elements from the dataset $\dataset$ (so that the array is of same length as the intermediate mix $\mathbf{m}$, i.e. each of $J_{mixbytes} = n_{mix}\cdot J_{hashbytes}$ bytes):
-\begin{equation}
- 	E_{newdata}(\mathbf{d}, \mathbf{m}, \mathbf{s}, i)[j] 
- 	\eqdef \dataset\left[ {p} \cdot n_{mix} + j\right], \quad \forall \quad 0\le j \le n_{mix}-1
-\end{equation}
-with the mixing index ${p}$ obtained as follows:
-\begin{equation}
-	{p} \eqdef 
-	E_\text{\tiny FNV}\left(i \oplus \mathbf{s}[0], \mathbf{m}\left[i \mod \left\lfloor\frac{J_{mixbytes}}{J_{wordbytes}}\right\rfloor\right]\right) \mod \left\lfloor\frac{d_{size} / J_{hashbytes}}{n_{mix}}\right\rfloor
-\end{equation}
-
-The $E_{compress}$ function converts $J_{mixbytes}$-byte mix eventually returned by $E_{accesses}$, 
-which is an array of $\lfloor J_{mixbytes} / J_{wordbytes} \rfloor$ words,
-into the compressed mix $\compressedmix \in \Byte_{32}=\Byte_{\lfloor J_{mixbytes}/4 \rfloor}$ as follows:
-\begin{equation}
-	E_{compress}(\mathbf{m}, i) \eqdef 
-	\begin{cases}
-		\emptystring & \text{if} \quad i \geqslant \lVert \mathbf{m} \rVert - 4 \\
-		E_\text{\tiny FNV}(E_\text{\tiny FNV}(E_\text{\tiny FNV}(\mathbf{m}[i], \mathbf{m}[i + 1]), \mathbf{m}[i + 2]), \mathbf{m}[i + 3]) 
-		\circ E_{compress}(\mathbf{m}, i + 4) & \text{otherwise}
-	\end{cases}
+	 \kec\left(\seedhash \circ \compressedmix \right)
 \end{equation}
 
 \subsubsection{Multi-point mix}
-The multi-point mix $\mpmix\in \B_{32}$ is calculated from the header $\headernon$
-and $\seedhash$, $\dataset$ as follows:
-\begin{equation}
-	\mpmix \eqdef \mpmix\left( \headernon, \seedhash, \dataset \right)
-	\eqdef  E_{\text{\tiny FNV}-compress}\left(E_{mp-eval}(a,b,c,w,\vec{z}),J_{accesses} \right)
-\end{equation}
+The multi-points $\mppnt\in \N_{64}^{J_{accesses}}$ and multi-point mix $\mpmix\in \N_{64}$ is calculated from the header $\headernon$, $\head_n$ as follows:
+\begin{align}
+	\mppnt &\eqdef \mppnt\left( \headernon, \head_n \right) \eqdef E_{mp-eval}(a,b,c,w,n_{low},\vec{z})\\
+	\mpmix &\eqdef \mpmix\left( \mppnt \right) \eqdef  E_{\text{\tiny FNV}-compress}\left(\mppnt,J_{accesses} \right)
+\end{align}
 with arguments and functions described in the rest of this section.
 
-Interpreting $\headernon$ as a byte array, 
-input arguments $a,b,c,w\in \B_{32}$ are defined as follows:
+Interpreting $\headernon$ as a 4-element array of $\N_{64}$ encoded in little-endian, 
+input arguments $a,b,c,w\in \N_{64},n_{low}\in \N$ are defined as follows:
+% compute.rs:206
 \begin{align}
-	a &\eqdef \headernon[0]\\
-	b &\eqdef \headernon[1]\\
-	c &\eqdef \headernon[2]\\
-	w &\eqdef \headernon[3]
+	a &\eqdef E_{remap}(\headernon[0])\\
+	b &\eqdef E_{remap}(\headernon[1])\\
+	c &\eqdef E_{remap\_c}(a,b,\headernon[2])\\
+	w &\eqdef E_{remap}(\headernon[3])\\
+	n_{high} &\eqdef \lfloor(\head_n \mod 2^{64})/J_{wrapsize}\rfloor \\
+	n_{low} &\eqdef \head_n \mod J_{wrapsize}
 \end{align}
-whereas the last argument $\vec{z}$ is an array of $J_{accesses}$ items drawn from $\B_{32}$.
-More specifically, $\vec{z}[i]$ is defined as:
-\begin{equation}
-	\vec{z}[i] \eqdef 
-	E_{parity}\left(E_{mp-accesses}(\mathbf{d}, \mathbf{m}_0, \seedhash, i, 0)\right),
-	\quad \forall \quad 0\le i \le J_{accesses}-1
-\end{equation}
-where the $E_{mp-accesses}$ function is defined as:
-\begin{equation}
-	E_{mp-accesses}(\mathbf{d}, \mathbf{m}, \mathbf{s}, i, j)
-	\eqdef 
- 	\begin{cases}
-		E_{mixdataset}(\mathbf{d}, \mathbf{m},  \mathbf{s}, i) & \text{if} \quad j \ge i \\
-		E_{mp-accesses}\big(\dataset, E_{mixdataset}(\mathbf{d}, \mathbf{m}, \mathbf{s}, j), \mathbf{s}, i, j + 1\big) & \text{otherwise}
-	\end{cases}
-\end{equation}
-and the $E_{parity}$ function is defined over $\Byte_{J_{mixbytes}} \to \B_{32}$ and 
-it simply returns the parity of all items in the input array at word level (i.e. realizing $\Byte_{J_{mixbytes}}$ as ${\lfloor J_{mixbytes}/J_{wordbytes}\rfloor}$ elements each of $J_{wordbytes}$ bytes),  
-formally defined as:
-\begin{equation}
-	E_{parity}(\vec{m}) \eqdef \oplus_{i=0}^{\lfloor J_{mixbytes}/J_{wordbytes}\rfloor -1} \vec{m}[i]
-\end{equation}
+where 
+% compute.rs:161
+\begin{align}
+	E_{remap}(h) &\eqdef 11^{\argmax_{x| {h\mod (J_{mod}-2) + 1}\;\land\;\mathsf{gcd}(x,J_{mod}-1)=1} x}  \mod J_{mod} \\
+	E_{remap\_c}(a,b,h) &\eqdef \argmin_{x\ge h \;\land\; J_{mod}\nmid b^2-4a\cdot E_{remap}(x)} x
+\end{align}
 
-The $E_{mp-eval}$ function evaluates the polynomial $E_{polynomial}$ on multiple points $\vec{x}[i]$ for $i\in \set{0,1,\dots, J_{accesses}-1}$ and returns the concatenation of $J_{accesses}$ elements drawn from $\B_{32}$ as follows:
+The last argument $\vec{z}$ is an array of $J_{pow}=J_{accesses}\times J_{wrapsize}$ items drawn from $\N_{32}$.
+More specifically, $\vec{z}[i]$ is defined as:
+% compute.rs:212
 \begin{equation}
-	E_{mp-eval}(a,b,c,w,\vec{z}) \eqdef 
-	E_{polynomial}\left(\vec{x}[0]\right) \circ E_{polynomial}\left(\vec{x}[1]\right) \circ \cdots \circ
-	E_{polynomial}\left(\vec{x}[J_{accesses-1}]\right)
+	\vec{z}[i\cdot J_{wrapsize} + j] \eqdef E_{\text{\tiny Sip},2,j+4}\left((n_{high}\cdot J_{wrapsize}+j)\mod 2^{64}\right) \mod J_{mod} \quad
+	 \forall 0\le i<J_{accesses}, 0\le j < J_{wrapsize}
 \end{equation}
-where $\vec{x}$ is an array of $32$-bit integers defined as:
+where the $E_{\text{\tiny Sip},c,d}$ refers the SipHash-$c$-$d$ function with a different key initialization process by $v_i \eqdef \headernon[i]$ ($i\in\{0,1,2,3\}$). See~\cite{aumasson2012siphash} for more details about SipHash function.
+
+The multiple points $\mppnt$ is an array of 32-bit $J_{accesses}$ integers. Function $E_{mp-eval}$ evaluated the polynomial $E_{polynomial}$ on multiple points $\vec{x}[i]$ for $i\in \set{0,1,\dots, J_{accesses}-1}$ to get $\mppnt$.
+% compute.rs:242
 \begin{equation}
-	\vec{x}[i] \eqdef a+b\cdot w^i + c\cdot w^{2i}, \quad \forall \quad 0\le i \le J_{accesses}-1
+	E_{mp-eval}(a,b,c,w,n_{low},\vec{z}) \eqdef 
+	\left\{E_{polynomial}\left(\vec{x}[0]\right) , E_{polynomial}\left(\vec{x}[1]\right) , \cdots ,
+	E_{polynomial}\left(\vec{x}[J_{accesses}-1]\right)\right\}
 \end{equation}
+where $\vec{x}$ is an array of words defined as:
+% compute.rs:226-251
+\begin{align}
+	\vec{x}[i] &\eqdef a+b\cdot w^{i\cdot J_{wrapsize} + n_{low}} + c\cdot w^{2\cdot (i\cdot J_{wrapsize} + n_{low})}, \quad \forall \quad 0\le i \le J_{accesses}-1 
+\end{align}
 and the $E_{polynomial}$ function is a polynomial with coefficients specified by $\vec{z}$:
 \begin{equation}
-	E_{polynomial}(x) \eqdef \left(\sum_{j=0}^{J_{accesses}-1} \vec{z}[j]\cdot x^j\right) \mod (10^9+7)
+	E_{polynomial}(x) \eqdef \left(\sum_{j=0}^{J_{pow}-1} \vec{z}[j]\cdot x^j\right) \mod J_{mod}
 \end{equation}
 
-The FNV-compress function $E_{\text{\tiny FNV}-compress}$ is defined over $\left(\B_{32}\right)^* \times \N \to \B_{32}$ 
-and used to compress an array of $\B_{32}$ elements into a single $\B_{32}$ element:
+The FNV-compress function $E_{\text{\tiny FNV}-compress}$ is defined over $\left(\N_{32}\right)^* \times \N \to \N_{64}$ 
+and used to compress an array of $\N_{32}$ elements into a single $\N_{64}$ element:
 \begin{equation}
-	E_{\text{\tiny FNV}-compress}(\vec{m},i) \eqdef 
+	E_{\text{\tiny FNV}-compress}(\vec{p},i) \eqdef 
 	\begin{cases}
-		\vec{0}_{32} & \text{if} \quad i < 1 \\
-		E_\text{\tiny FNV}\left( 
-		E_{\text{\tiny FNV}-compress}(\vec{m},i-1) ,
-		\vec{m}[i-1]\right)
+		\vec{0}_{64} & \text{if} \quad i < 1 \\
+		E_\text{\tiny FNV64}\left( 
+		E_{\text{\tiny FNV}-compress}(\vec{p},i-1) ,
+		\vec{p}[i-1]\right)
 		& \text{otherwise}
 	\end{cases}
 \end{equation}
+where integers in $\N_{32}$ are interpreted integers in $\N_{64}$, $E_\text{\tiny FNV64}: \N_{64}\times \N_{64} \rightarrow \N_{64}$ is defined similar with $\fnv$.
+% compute.rs:45
+\begin{equation}
+	E_\text{\tiny FNV64}(\mathbf{x}, \mathbf{y}) \eqdef \left( (\mathbf{x} \times \mathrm{0x01000193}) \oplus \mathbf{y}\right) \mod 2^{64}
+\end{equation}
+
+\subsubsection{Seed hash}
+The seed hash $\seedhash\in \B_{512}=\Byte_{J_{hashbytes}}$ is defined on $\headernon$ and $\mpmix$ as follows:
+% compute.rs:292
+\begin{equation}
+ \seedhash \eqdef 
+ \seedhash(\headernon, \mpmix) \eqdef \kec512\left(\headernon \circ \mathrm{LE}(\mpmix)\right)
+\end{equation}
+where $\mathrm{LE}(\mpmix)$ returns the little-endian encoding of the compressed multi-point mix $\mpmix$.
+
+\subsubsection{Compressed mix}
+The compressed mix $\compressedmix \in \B_{256}$ is obtained from the seed hash $\seedhash\in \B_{512}=\Byte_{J_{hashbytes}}$, the dataset $\dataset\in \Byte_{d_{size}}$ and the multiple points $\mppnt\in (\N_{64})^{J_{accesses}}$:
+\begin{equation}\label{eq:compress}
+ \compressedmix \eqdef 
+ \compressedmix\big(\seedhash,\dataset,\mppnt) \eqdef E_{compress}\big(\mathbf{m}_{J_{accesses}}\big)
+\end{equation}
+where $\mathbf{m}_{J_{accesses}}$ and $E_{compress}$ are defined as follows.
+
+The initial mix $\mathbf{m}_0$ is an array of $n_{mixw}$ words 
+obtained by replicating the seed hash $\seedhash$ for $n_{mixh}$ times, 
+with $n_{mixw},n_{mixh}$ defined as:
+\begin{align}
+	n_{mixw}& \eqdef  \frac{J_{mixbytes}}{J_{wordbytes}}\\
+	n_{mixh}& \eqdef  \frac{J_{mixbytes}}{J_{hashbytes}}
+\end{align}
+Formally, the initial mix 
+$\mathbf{m}_0 \in \Byte_{J_{mixbytes}}
+=\left(\Byte_{J_{wordbytes}}\right)^{n_{mixw}}$ is defined as:
+\begin{equation}
+	\mathbf{m}_0 \eqdef \underbrace{\seedhash \circ \cdots \circ \seedhash}_{\text{$n_{mixh}$ many copies of $\seedhash$}}
+\end{equation}
+%
+All the $\mathbf{m}_j$ is updated from $\mathbf{m}_{j-1}$ as follows
+% compute.rs:350
+\begin{align}
+ \mathbf{m}_j[i] &\eqdef 
+	\fnv\big(
+		\mathbf{m}_{j-1}[i], 
+		\mathbf{d}\left[
+			\left(p_j\cdot n_{mixh} +\lfloor i/n_{hashw}\rfloor \right) \mod 2^{32}
+		\right][i\mod n_{hashw}]
+	\big) \quad \forall 0\le j<J_{accesses},0\le i< n_{mixw}\\ 
+ {p}_j &\eqdef 
+	\fnv\left(j \oplus \seedhash[0] \oplus \mathbf{p}[j], \mathbf{m}_{j-1}\left[j \mod \frac{J_{mixbytes}}{J_{wordbytes}}\right]\right) \mod \frac{d_{size}}{J_{mixbytes}}\quad \forall 0\le j<J_{accesses}
+\end{align}
+where $n_{hashw}\eqdef J_{hashbytes}/J_{wordbytes}$. We regard a $J_{hashbytes}$-bit string as an array of $n_{hashw}$ words here. 
+% where $\fnv^*$ denotes the element-wise invocation of $\fnv$ on $32$-bit elements,
+% and $E_{newdata}$ returns an array consisting of $n_{mixh}$ elements from the dataset $\dataset$ (so that the array is of same length as the intermediate mix $\mathbf{m}$, i.e. each of $J_{mixbytes} = n_{mixh}\cdot J_{hashbytes}$ bytes):
+% % compute.rs:345
+% \begin{equation}
+%  	E_{newdata}(\mathbf{d}, \mathbf{m}, \mathbf{s}, i)[j] 
+%  	\eqdef \dataset\left[ {p}_i \cdot n_{mixh} + j\right], \quad \forall \quad 0\le j \le n_{mixh}-1
+% \end{equation}
+% with the mixing index ${p}$ obtained as follows:
+% \begin{equation}
+% 	{p}_i \eqdef 
+% 	\fnv\left(i \oplus \seedhash[0] \oplus \mathbf{p}[i], \mathbf{m}\left[i \mod \left\lfloor\frac{J_{mixbytes}}{J_{wordbytes}}\right\rfloor\right]\right) \mod \left\lfloor\frac{d_{size} / J_{hashbytes}}{n_{mixh}}\right\rfloor
+% \end{equation}
+
+The $E_{compress}$ function converts $J_{mixbytes}$-byte mix
+which is an array of $J_{mixbytes} / J_{wordbytes}=64$ words,
+into the 8 words. The $i$-th word is computed as:
+\begin{multline}
+	E_{compress}(\mathbf{m})[i] \eqdef \fnv\big(\fnv(\fnv(\fnv(\mathbf{m}[4i], \mathbf{m}[4i + 1]), \mathbf{m}[4i + 2]), \mathbf{m}[4i + 3]), \\
+	\fnv(\fnv(\fnv(\mathbf{m}[4i+32], \mathbf{m}[4i +33]), \mathbf{m}[4i + 34]), \mathbf{m}[4i + 35])\big)\quad \forall 0\le i \le 7
+\end{multline}
+This array can also be regarded as compressed mix $\compressedmix\in\B_{256}$.
+
+
