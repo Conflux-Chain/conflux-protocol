@@ -37,7 +37,7 @@ Name & Value & Description \\
 % shared.rs:19
 \linkdest{J__accesses}{}$J_{accesses}$ & $2^5$ & Number of accesses in hashimoto loop. \\
 % shared.rs:18
-\linkdest{J__wrapsize}{}$J_{wrapsize}$ & $J_{pow}/J_{accesses}$ &  \\
+\linkdest{J__warpsize}{}$J_{warpsize}$ & $J_{pow}/J_{accesses}$ &  \\
 \linkdest{J__mod}{}$J_{mod}$ & $1032193$ & Modulus in multiple point evaluation. \\
 \bottomrule
 \end{tabu*}
@@ -72,7 +72,7 @@ The seed hash is different for every stage. For the first stage it is the Keccak
 % seed_compute.rs:27
 % seed_compute.rs:45
 \begin{equation}
- \mathbf{s} \eqdef \kec^{(J_{stage})}(\mathbf{0}_{256})
+ \mathbf{s} \eqdef \kec^{(E_{stage}(\head_h))}(\mathbf{0}_{256})
 \end{equation}
 where $\mathbf{0}_{256}$ denotes $256$ bits of zeros. (Recalling that $f^{(n)}$ represents calling function $f$ in $n$ times recursively.)
 
@@ -136,8 +136,8 @@ where $\mathbf{m}_{j}$ is updated from $\mathbf{m}_{j-1}$ by function $E_{mix}$.
 	\mathbf{m}_0 &\eqdef \kec512(\mathbf{c}[i\mod n] \oplus i) \\
 	E_{mix}(\mathbf{c}, i, \mathbf{m},p) & \eqdef \fnv^*\Big(\mathbf{m}, \mathbf{c}[\fnv(i \oplus p, ~ \mathbf{m}\big[p \mod J_{hashbytes} / J_{wordbytes} ]) \mod n \big] \Big)
 \end{align}
-Here, $i$ is regarded a 512-bit string in little-endian
-and $\fnv^*$ denotes the element-wise invocation of $\fnv$ over $J_{hashbytes}$-bit string, which interpreted as an array of words in little-endian. 
+Here, $i$ is regarded as a 512-bit string in little-endian
+and $\fnv^*$ denotes the element-wise invocation of $\fnv$ over $J_{hashbytes}$-bit string, which is interpreted as an array of words in little-endian. 
 
 \subsection{Proof-of-work function}
 \label{appsec:pow}
@@ -173,22 +173,23 @@ input arguments $a,b,c,w\in \N_{64},n_{low}\in \N$ are defined as follows:
 	b &\eqdef E_{remap}(\headernon[1])\\
 	c &\eqdef E_{remap\_c}(a,b,\headernon[2])\\
 	w &\eqdef E_{remap}(\headernon[3])\\
-	n_{high} &\eqdef \lfloor(\head_n \mod 2^{64})/J_{wrapsize}\rfloor \\
-	n_{low} &\eqdef \head_n \mod J_{wrapsize}
+	n_{high} &\eqdef \lfloor(\head_n \mod 2^{64})/J_{warpsize}\rfloor \\
+	n_{low} &\eqdef \head_n \mod J_{warpsize}
 \end{align}
 where 
 % compute.rs:161
 \begin{align}
-	E_{remap}(h) &\eqdef 11^{\argmax_{x| {h\mod (J_{mod}-2) + 1}\;\land\;\mathsf{gcd}(x,J_{mod}-1)=1} x}  \mod J_{mod} \\
+	E_{proper\_pow}(h) &\eqdef \argmax_{x| h \;\land\;\mathsf{gcd}(x,J_{mod}-1)=1} x \\
+	E_{remap}(h) &\eqdef 11^{E_{proper\_pow}(h {\scriptsize \mod} (J_{mod}-2) + 1)}  \mod J_{mod} \\
 	E_{remap\_c}(a,b,h) &\eqdef \argmin_{x\ge h \;\land\; J_{mod}\nmid b^2-4a\cdot E_{remap}(x)} x
 \end{align}
 
-The last argument $\vec{z}$ is an array of $J_{pow}=J_{accesses}\times J_{wrapsize}$ items drawn from $\N_{32}$.
+The last argument $\vec{z}$ is an array of $J_{pow}=J_{accesses}\times J_{warpsize}$ items drawn from $\N_{32}$.
 More specifically, $\vec{z}[i]$ is defined as:
 % compute.rs:212
 \begin{equation}
-	\vec{z}[i\cdot J_{wrapsize} + j] \eqdef E_{\text{\tiny Sip},2,j+4}\left((n_{high}\cdot J_{wrapsize}+j)\mod 2^{64}\right) \mod J_{mod} \quad
-	 \forall 0\le i<J_{accesses}, 0\le j < J_{wrapsize}
+	\vec{z}[i\cdot J_{warpsize} + j] \eqdef E_{\text{\tiny Sip},2,j+4}\left((n_{high}\cdot J_{warpsize}+j)\mod 2^{64}\right) \mod J_{mod} \quad
+	 \forall 0\le i<J_{accesses}, 0\le j < J_{warpsize}
 \end{equation}
 where the $E_{\text{\tiny Sip},c,d}$ refers the SipHash-$c$-$d$ function with a different key initialization process by $v_i \eqdef \headernon[i]$ ($i\in\{0,1,2,3\}$). See~\cite{aumasson2012siphash} for more details about SipHash function.
 
@@ -202,7 +203,7 @@ The multiple points $\mppnt$ is an array of 32-bit $J_{accesses}$ integers. Func
 where $\vec{x}$ is an array of words defined as:
 % compute.rs:226-251
 \begin{align}
-	\vec{x}[i] &\eqdef a+b\cdot w^{i\cdot J_{wrapsize} + n_{low}} + c\cdot w^{2\cdot (i\cdot J_{wrapsize} + n_{low})}, \quad \forall \quad 0\le i \le J_{accesses}-1 
+	\vec{x}[i] &\eqdef a+b\cdot w^{i\cdot J_{warpsize} + n_{low}} + c\cdot w^{2\cdot (i\cdot J_{warpsize} + n_{low})}, \quad \forall \quad 0\le i \le J_{accesses}-1 
 \end{align}
 and the $E_{polynomial}$ function is a polynomial with coefficients specified by $\vec{z}$:
 \begin{equation}
