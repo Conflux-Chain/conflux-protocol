@@ -30,30 +30,26 @@ The $\mpethash$ function is defined as:
 	\mpethash(\head)
 	\eqdef \mpethash\left(\kec\left(\rlp( \head_{-n} )\right), \head_{n},\dataset\right) 
 	\eqdef 
-	\set{\compressedmix, \kec\left(\seedhash \circ \compressedmix \circ \mpmix \right)}
+	 \kec\left(\seedhash \circ \compressedmix \right)
 \end{equation}
-where $\dataset$ denotes the dataset derived from $\head$ as in Appendix~\ref{app:dataset} and $\head_{-n}$ denotes the header excluding the {\bf mixHash} and {\bf nonce} fields,
-i.e. $\head \equiv \head_{-n} \circ \head_x \circ \head_n$ since {\bf mixHash} and {\bf nonce} are indeed the last two fields in the structure of block header,
+where $\dataset$ denotes the dataset derived from $\head$ as in Appendix~\ref{app:dataset} and $\head_{-n}$ denotes the header excluding the {\bf nonce} field,
+i.e. $\head \equiv \head_{-n} \circ \head_n$ since {\bf nonce} is indeed the last field in the structure of block header,
 and the fields of $\head_{-n}$ are \rlp-serialized according to their order in Section~\ref{sec:block}. 
 
-The output of $\mpethash$ consists of an array with the compressed mix $\compressedmix$ as its first item, 
-and the Keccak-256 hash of the concatenation of the seed hash $\seedhash\in \B_{512}$, the compressed mix $\compressedmix\in \B_{256}$,
-and the compressed multi-point mix $\mpmix\in\B_{32}$ as the second item.
+The output of $\mpethash$ is the Keccak-256 hash of the concatenation of the seed hash $\seedhash\in \B_{512}$ and the compressed mix $\compressedmix\in \B_{256}$.
 See Appendix~\ref{appsec:pow} for more details.
 
-The first output item of $\mpethash$ is used as the Proof-of-Work function $\pow$, 
-and the second output item is realized as the mix-hash $\head_x$:
+The $\mpethash$ function is essentially the Proof-of-Work function $\pow$:
 \begin{align}\label{eq:pow}
 	% \mpethash(\head)
 	% &\eqdef \mpethash\left(\kec\left(\rlp( \head_{-n} )\right), \head_{n},\dataset\right) 
 	% \eqdef 
 	% \set{\compressedmix, \kec\left(\seedhash \circ \compressedmix \circ \mpmix \right)}\\
 	\pow(\head) 
-	&\eqdef \mpethash\left(\kec\left(\rlp( \head_{-n} )\right), \head_{n},\dataset\right)[1] 
-	= \kec\left(\seedhash \circ \compressedmix \circ \mpmix\right)\\
-	\head_x 
-	&\eqdef \mpethash\left(\kec\left(\rlp( \head_{-n} )\right), \head_{n},\dataset\right)[0] 
-	= \compressedmix \label{eq:mixhash}
+	&\eqdef \mpethash\left(\head\right)
+	% \head_x 
+	% &\eqdef \mpethash\left(\kec\left(\rlp( \head_{-n} )\right), \head_{n},\dataset\right)[0] 
+	% = \compressedmix \label{eq:mixhash}
 \end{align}
 
 

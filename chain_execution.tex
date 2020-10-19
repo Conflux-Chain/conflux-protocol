@@ -18,24 +18,24 @@ The initialization world state $\st^0$ is set as follows. A list $\vec{a}$ with 
 	\forall (a,b)\in \vec{a}, \st^0[a]= \account^0 \quad \mbox{except:} \account_b=b 
 \end{align}
 
-In Oceanus, this list contains the following two addresses for faucet. Each address has initialization balance $5\times 10^{33}$ \unit, i.e., 5000 trillion \coinsign.
-%
-\begin{align*}
-	\mathsf{0x1be45681ac6c53d5a40475f7526bac1fe7590fb8} \\
-	\mathsf{0x1e768d12395c8abfdedf7b1aeb0dd1d27d5e2a7f}
-\end{align*}
+% In Oceanus, this list contains the following two addresses for faucet. Each address has initialization balance $5\times 10^{33}$ \unit, i.e., 5000 trillion \coinsign.
+% %
+% \begin{align*}
+% 	\mathsf{0x1be45681ac6c53d5a40475f7526bac1fe7590fb8} \\
+% 	\mathsf{0x1e768d12395c8abfdedf7b1aeb0dd1d27d5e2a7f}
+% \end{align*}
 
-The \name internal contracts are also initialized.
-%
-\begin{align}
-	\forall a\in \{a_{\sf stake},a_{\sf sponsor},a_{\sf admin}\}, \st^0[a] &\eqdef \account^0 \quad \mbox{except:} \account_n=1 \\
-	\mbox{where:}&\\
-	a_{\sf admin} &\eqdef \admincontract \\ 
-	a_{\sf sponsor} &\eqdef \sponsorcontract \\
-	a_{\sf stake} &\eqdef \stakingcontract
-\end{align}
+% The \name internal contracts are also initialized.
+% %
+% \begin{align}
+% 	\forall a\in \{a_{\sf stake},a_{\sf sponsor},a_{\sf admin}\}, \st^0[a] &\eqdef \account^0 \quad \mbox{except:} \account_n=1 \\
+% 	\mbox{where:}&\\
+% 	a_{\sf admin} &\eqdef \admincontract \\ 
+% 	a_{\sf sponsor} &\eqdef \sponsorcontract \\
+% 	a_{\sf stake} &\eqdef \stakingcontract
+% \end{align}
 
-Besides, the global statistic information will be set as follows:
+The global statistic information will be set as follows:
 
 \begin{align}
 	\st^0[a_{\sf stake}][k_1]_v & \eqdef \blockinyear\times 2^{80} \\ 
