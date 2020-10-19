@@ -371,7 +371,7 @@ The block header $\head$ is a collection of relevant pieces of information:
 	\item {\bf customData:} A customized field with an arbitrary length list of byte string $\head_c\in (\Byte^*)^*$. 
 
 	% {The following corresponds to the PoW part:}
-	\item {\bf mixHash:} A $256$-bit hash which, combined with the {\bf nonce}, proves that a sufficient amount of computation has been carried out on this block; formally $\head_x\in\B_{256}$. 
+	% \item {\bf mixHash:} A $256$-bit hash which, combined with the {\bf nonce}, proves that a sufficient amount of computation has been carried out on this block; formally $\head_x\in\B_{256}$. 
 
 	\item {\bf nonce:} A $256$-bit value which
 	proves that a sufficient amount of computation has been carried out on this block, formally $\head_n\in\B_{256}$.
@@ -385,7 +385,7 @@ Formally, a block header is defined as
 	\head = (\head_p,\head_h,\head_s,\head_s,\head_a,\head_t,\head_r,\head_e,\head_b,\head_m,\head_d,\head_w,\head_\ell,\head_o,\head_c,\head_n)
 \end{align}
 
-Notice that the {\bf mixHash} is not a part of block header in Oceanus. 
+% Notice that the {\bf mixHash} is not a part of block header in Oceanus. 
 	
 The other part of $\block$ is simply a list of transactions. Therefore the block $\block$ can be represented as follows:
 \begin{align}

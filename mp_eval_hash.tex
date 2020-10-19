@@ -171,7 +171,7 @@ input arguments $a,b,c,w\in \N_{64},n_{low}\in \N$ are defined as follows:
 \begin{align}
 	a &\eqdef E_{remap}(\headernon[0])\\
 	b &\eqdef E_{remap}(\headernon[1])\\
-	c &\eqdef E_{remap\_c}(a,b,\headernon[2])\\
+	c &\eqdef E_{remap}(E_{proper\_c}(a,b,\headernon[2]))\\
 	w &\eqdef E_{remap}(\headernon[3])\\
 	n_{high} &\eqdef \lfloor(\head_n \mod 2^{64})/J_{warpsize}\rfloor \\
 	n_{low} &\eqdef \head_n \mod J_{warpsize}
@@ -179,9 +179,9 @@ input arguments $a,b,c,w\in \N_{64},n_{low}\in \N$ are defined as follows:
 where 
 % compute.rs:161
 \begin{align}
-	E_{proper\_pow}(h) &\eqdef \argmax_{x| h \;\land\;\mathsf{gcd}(x,J_{mod}-1)=1} x \\
-	E_{remap}(h) &\eqdef 11^{E_{proper\_pow}(h {\scriptsize \mod} (J_{mod}-2) + 1)}  \mod J_{mod} \\
-	E_{remap\_c}(a,b,h) &\eqdef \argmin_{x\ge h \;\land\; J_{mod}\nmid b^2-4a\cdot E_{remap}(x)} x
+	E_{proper\_power}(h) &\eqdef \argmax_{x| h \;\land\;\mathsf{gcd}(x,J_{mod}-1)=1} x \\
+	E_{remap}(h) &\eqdef 11^{E_{proper\_power}((h {\scriptsize \mod} (J_{mod}-2)) + 1)}  \mod J_{mod} \\
+	E_{proper\_c}(a,b,h) &\eqdef \argmin_{x\ge h \;\land\; J_{mod}\nmid b^2-4a\cdot E_{remap}(x)} x
 \end{align}
 
 The last argument $\vec{z}$ is an array of $J_{pow}=J_{accesses}\times J_{warpsize}$ items drawn from $\N_{32}$.
@@ -203,7 +203,7 @@ The multiple points $\mppnt$ is an array of 32-bit $J_{accesses}$ integers. Func
 where $\vec{x}$ is an array of words defined as:
 % compute.rs:226-251
 \begin{align}
-	\vec{x}[i] &\eqdef a+b\cdot w^{i\cdot J_{warpsize} + n_{low}} + c\cdot w^{2\cdot (i\cdot J_{warpsize} + n_{low})}, \quad \forall \quad 0\le i \le J_{accesses}-1 
+	\vec{x}[i] &\eqdef c+b\cdot w^{i\cdot J_{warpsize} + n_{low}} + a\cdot w^{2\cdot (i\cdot J_{warpsize} + n_{low})}, \quad \forall \quad 0\le i \le J_{accesses}-1 
 \end{align}
 and the $E_{polynomial}$ function is a polynomial with coefficients specified by $\vec{z}$:
 \begin{equation}
@@ -222,14 +222,14 @@ and used to compress an array of $\N_{32}$ elements into a single $\N_{64}$ elem
 		& \text{otherwise}
 	\end{cases}
 \end{equation}
-where integers in $\N_{32}$ are interpreted integers in $\N_{64}$, $E_\text{\tiny FNV64}: \N_{64}\times \N_{64} \rightarrow \N_{64}$ is defined similar with $\fnv$.
+where integers in $\N_{32}$ are interpreted as integers in $\N_{64}$, $E_\text{\tiny FNV64}: \N_{64}\times \N_{64} \rightarrow \N_{64}$ naturally extends $\fnv$.
 % compute.rs:45
 \begin{equation}
 	E_\text{\tiny FNV64}(\mathbf{x}, \mathbf{y}) \eqdef \left( (\mathbf{x} \times \mathrm{0x01000193}) \oplus \mathbf{y}\right) \mod 2^{64}
 \end{equation}
 
-\subsubsection{Seed hash}
-The seed hash $\seedhash\in \B_{512}=\Byte_{J_{hashbytes}}$ is defined on $\headernon$ and $\mpmix$ as follows:
+\subsubsection{Half mix}
+The half mix $\seedhash\in \B_{512}=\Byte_{J_{hashbytes}}$ is defined on $\headernon$ and $\mpmix$ as follows:
 % compute.rs:292
 \begin{equation}
  \seedhash \eqdef 
@@ -259,7 +259,7 @@ $\mathbf{m}_0 \in \Byte_{J_{mixbytes}}
 	\mathbf{m}_0 \eqdef \underbrace{\seedhash \circ \cdots \circ \seedhash}_{\text{$n_{mixh}$ many copies of $\seedhash$}}
 \end{equation}
 %
-All the $\mathbf{m}_j$ is updated from $\mathbf{m}_{j-1}$ as follows
+Every the $\mathbf{m}_j$ is updated from $\mathbf{m}_{j-1}$ as follows
 % compute.rs:350
 \begin{align}
  \mathbf{m}_j[i] &\eqdef 
@@ -270,7 +270,7 @@ All the $\mathbf{m}_j$ is updated from $\mathbf{m}_{j-1}$ as follows
 		\right][i\mod n_{hashw}]
 	\big) \quad \forall 0\le j<J_{accesses},0\le i< n_{mixw}\\ 
  {p}_j &\eqdef 
-	\fnv\left(j \oplus \seedhash[0] \oplus \mathbf{p}[j], \mathbf{m}_{j-1}\left[j \mod \frac{J_{mixbytes}}{J_{wordbytes}}\right]\right) \mod \frac{d_{size}}{J_{mixbytes}}\quad \forall 0\le j<J_{accesses}
+	\fnv\left(j \oplus \seedhash[0] \oplus \mathbf{p}[j], \mathbf{m}_{j-1}\left[j \mod n_{mixw}\right]\right) \mod \frac{d_{size}}{J_{mixbytes}}\quad \forall 0\le j<J_{accesses}
 \end{align}
 where $n_{hashw}\eqdef J_{hashbytes}/J_{wordbytes}$. We regard a $J_{hashbytes}$-bit string as an array of $n_{hashw}$ words here. 
 % where $\fnv^*$ denotes the element-wise invocation of $\fnv$ on $32$-bit elements,
@@ -286,13 +286,13 @@ where $n_{hashw}\eqdef J_{hashbytes}/J_{wordbytes}$. We regard a $J_{hashbytes}$
 % 	\fnv\left(i \oplus \seedhash[0] \oplus \mathbf{p}[i], \mathbf{m}\left[i \mod \left\lfloor\frac{J_{mixbytes}}{J_{wordbytes}}\right\rfloor\right]\right) \mod \left\lfloor\frac{d_{size} / J_{hashbytes}}{n_{mixh}}\right\rfloor
 % \end{equation}
 
-The $E_{compress}$ function converts $J_{mixbytes}$-byte mix
-which is an array of $J_{mixbytes} / J_{wordbytes}=64$ words,
-into the 8 words. The $i$-th word is computed as:
+The $E_{compress}$ function converts $J_{mixbytes}$-byte mix,
+which is an array of $n_{mixw}=64$ words,
+into an 8-word array, with the $i$-th word is define as follows:
 \begin{multline}
 	E_{compress}(\mathbf{m})[i] \eqdef \fnv\big(\fnv(\fnv(\fnv(\mathbf{m}[4i], \mathbf{m}[4i + 1]), \mathbf{m}[4i + 2]), \mathbf{m}[4i + 3]), \\
 	\fnv(\fnv(\fnv(\mathbf{m}[4i+32], \mathbf{m}[4i +33]), \mathbf{m}[4i + 34]), \mathbf{m}[4i + 35])\big)\quad \forall 0\le i \le 7
 \end{multline}
-This array can also be regarded as compressed mix $\compressedmix\in\B_{256}$.
+The array obtained by applying $E_{compress}$ on $m_{J_{accesses}}$ is indeed the compressed mix $\compressedmix$ by \cref{eq:compress}.
 
 
