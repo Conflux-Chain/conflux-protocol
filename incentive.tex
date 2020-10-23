@@ -113,7 +113,7 @@ Thus, the base factor $\basef(\block)$ of block $\block$ is defined as
 	\basef(\block)\eqdef \begin{cases}
 		% {\color{red} w} & {\color{red} \mbox{$\block$ is a valid heavy block}}\\
 		1 & \mbox{$\block$ is valid and $\af(\block)>0$, \newversion{not blamed, and satisfies the target difficulty of $\epoch_k$ (which requires  }}\\
-		~ & \mbox{\newversion{$\quality(\block)\ge \heavywvalue \cdot \mathbf{d}_{\epoch_k}$ if $\mathrm{Adaptive}(\block)=\true$ or $\quality(\block)\ge \mathbf{d}_{\epoch_k}$ if $\mathrm{Adaptive}(\block)=\false$)}}\\
+		~ & \mbox{ $\quality(\block)\ge \mathbf{d}_{\epoch_k}$)}\\
 		0 & \mbox{otherwise ($\block$ is partially valid, \newversion{$\af(\block)=0$, blamed}, or $\quality(\block)$ does not satisfy the requirement)} 
 	\end{cases}
 \end{align}
