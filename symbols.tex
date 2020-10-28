@@ -34,7 +34,6 @@
 
 \newcommand{\name}{Conflux\xspace}
 \newcommand{\tg}{\text{Tree-Graph}\xspace}
-% \newcommand{\phvname}[1]{{\fontfamily{phv}\selectfont #1}}
 \newcommand{\phvname}[1]{\textsf{#1}}
 \newcommand{\op}[1]{\ensuremath{\mathsf{#1}}}
 
@@ -96,7 +95,6 @@
 \renewcommand{\vec}[1]{\ensuremath{\mathbf{#1}}}
 
 \newcommand{\eqdef}{\ensuremath{\equiv}}
-% \newcommand{\eqdef}{\ensuremath{:=}}
 
 \newcommand{\true}{\mathsf{True}}
 \newcommand{\false}{\mathsf{False}}
@@ -170,7 +168,6 @@
 %%%%%%%%%%%%%%%%%%%%%%%%
 
 \newcommand{\chainid}{2}
-% \newcommand{\chainid}{{\color{red} Conflux Chain ID}}
 
 \newcommand{\txepochbound}{{\color{red}100000}}
 
@@ -205,7 +202,7 @@
 
 \newcommand{\decayperiodinday}{91.25}
 \FPeval{\decayperiodinblock}{clip(\decayperiodinday*86400/\blocktime)}
-% \newcommand{\decayperiod}{15768000} % a quarter = 60*60*24*365/4 seconds, times 2 blocks/s
+% a quarter = 60*60*24*365/4 seconds, times 2 blocks/s
 
 \newcommand{\decaystartinquarter}{16}
 \newcommand{\decayendinquarter}{48}
@@ -214,22 +211,14 @@
 \FPeval{\decayyears}{clip(\decayquarters/4)}
 
 \newcommand{\halfendinyear}{10}
-% \FPeval{\decayendinblock}{round(\decayperiodinblock*\halfendinyear*365/\decayperiodinday,0)}
 
 \newcommand{\halfinperiod}{16}
 \FPeval{\decayfactor}{round((0.5)^(1/\halfinperiod),3)}
 \FPeval{\decayby}{round(1-\decayfactor,3)}
 \FPeval{\decaybypercent}{round(\decayby*100,1)}
-% \newcommand{\decaypercent}{4.2}
-% \FPeval{\decayfactor}{round(1-\decaypercent/100,3)}
 
 \newcommand{\genesistotal}{5000000000}
 \newcommand{\mininginflationfirstperiod}{0.0356}
-% \newcommand{\mininginflationfirstperiod}{0.05}
-
-% \FPeval{\initialblockreward}{round(\genesistotal*\mininginflationfirstperiod/\decayperiodinblock,1)}
-% \newcommand{\blockreward}{900}
-% \FPeval{\eventualblockreward}{round(\initialblockreward*(\decayfactor^40),2)}
 
 \newcommand{\targetinflationpercent}{2}
 
@@ -241,8 +230,6 @@
 \FPeval{\dfbresult}{clip(\dfb+1)}
 \FPeval{\minerfreezeexec}{clip(\dfb+\minerfreeze)}
 
-
-% !TEX root = ./contract.tex
 
 %% GHAST parameters
 
@@ -282,8 +269,6 @@
 \newcommand{\mingas}{{21000}\xspace}
 \newcommand{\mingaslimit}{{5000}\xspace}
 
-% \newcommand{\startdifficulty}{5\times 10^9}
-% \newcommand{\startdifficultyline}{5000000000}
 \newcommand{\startdifficulty}{20\times 2^{30}}
 \newcommand{\startdifficultyline}{21474836480}
 
