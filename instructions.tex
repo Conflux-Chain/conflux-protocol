@@ -547,16 +547,14 @@ When querying other block numbers, the returned result is always $0$.\\
 &&&& $\mathbf{i} \equiv \mst_{\mathbf{m}}[ \mst_{\mathbf{s}}[3] \dots (\mst_{\mathbf{s}}[3] + \mst_{\mathbf{s}}[4] - 1) ]$ \\
 &&&& $(\st', g', A^+, \mathbf{o}) \equiv \begin{cases}
 	\begin{array}{l}
-		\Theta(\st, I_{\mathrm{a}}, I_{\mathrm{o}}, t, I_\vec{t}\cdot I_a,I_i, t, C_{\text{\tiny CALLGAS}}(\mst),\\ \quad I_{\mathrm{p}}, \mst_{\mathbf{s}}[2], \mst_{\mathbf{s}}[2], \mathbf{i}, I_{\mathrm{e}} + 1, I_{\mathrm{w}})\end{array} & 
+		\Theta(\st, I_{\mathrm{a}}, I_{\mathrm{o}}, t, I_\vec{t}\cdot I_a,I_i, t, C_{\text{\tiny CALLGAS}}(\mst),\\ \quad I_{\mathrm{p}}, \mst_{\mathbf{s}}[2], \mst_{\mathbf{s}}[2], \mathbf{i}, I_{\mathrm{e}} + 1, I_{\mathrm{w}}\;\wedge\; r)\end{array} & 
 		\text{if} \quad p\\ 
 	(\st, g, \varnothing, \emptystring) & 
 	\text{otherwise} 
 \end{cases}$ \\
-&&&&$ \begin{array}{l}
-	p\eqdef \mst_{\mathbf{s}}[2] \leqslant \st[I_{\mathrm{a}}]_{\mathrm{b}} \;\wedge \; I_{\mathrm{e}} < 1024  
-	\;\wedge \; \mathsf{Type}_{t} \in \set{\typereserved,\typenormal,\typecontract} \\ 
-	\quad \quad \wedge\; (t\notin I_\vec{t}\;\vee\; t= I_a\;\vee\; (C_{\text{\tiny CALLGAS}}(\st, \mst)\le G_{callstipend} \;\wedge\; \mst_{\mathbf{s}}[4]=0))
-\end{array}$\\
+&&&&$p\eqdef \mst_{\mathbf{s}}[2] \leqslant \st[I_{\mathrm{a}}]_{\mathrm{b}} \;\wedge \; I_{\mathrm{e}} < 1024  
+\;\wedge \; \mathsf{Type}_{t} \in \set{\typereserved,\typenormal,\typecontract}$ \\
+&&&&$r\eqdef t\notin I_\vec{t}\;\vee\; t= I_a$\\
 &&&& $n \equiv \min(\{ \mst_{\mathbf{s}}[6], \lVert \mathbf{o} \rVert\})$ \\
 &&&& $\mst'_{\mathbf{m}}[ \mst_{\mathbf{s}}[5] \dots (\mst_{\mathbf{s}}[5] + n - 1) ] = \mathbf{o}[0 \dots (n - 1)]$ \\
 &&&& $\mst'_{\mathbf{o}} = \mathbf{o}$ \\
@@ -643,7 +641,7 @@ G_{newaccount} & \text{if} \quad \mathtt{DEAD}(\st, \mst_{\mathbf{s}}[1] \mod 2^
 &&&& The argument $\mst_{\mathbf{s}}[2]$ is replaced with $0$. \\
 &&&& The deeper argument $\mst_{\mathbf{s}}[3]$, $\mst_{\mathbf{s}}[4]$, $\mst_{\mathbf{s}}[5]$ and $\mst_{\mathbf{s}}[6]$ are respectively replaced \\
 &&&& with $\mst_{\mathbf{s}}[2]$, $\mst_{\mathbf{s}}[3]$, $\mst_{\mathbf{s}}[4]$ and $\mst_{\mathbf{s}}[5]$. \\
-&&&& The last argument of $\Theta$ is $\bot$. \\
+&&&& The last argument of $\Theta$ is $\false$. \\
 \midrule
 0xfd & $\op{REVERT}$ & 2 & 0 & Halt execution reverting state changes but returning data and remaining gas. \\
 &&&& The effect of this operation is described in (\ref{eq:X-def}). \\
