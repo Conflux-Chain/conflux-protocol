@@ -233,8 +233,8 @@ We define the tuple of post-execution provisional state $\st^{P}$, remaining gas
 \begin{align}\label{def:transform}
 	(\st^{P},g',A,z)\eqdef
 	\begin{cases}
-		\creation(\st^0,\sender{\tx},\sender{\tx},\emptystring, \mathsf{ColOwner}(\st,\tx),g,\tx_p,\tx_v,\tx_{\bf i},0,\zeta,\top) &  \tx_a=\varnothing \\
-		\execution(\st^0,\sender{\tx},\sender{\tx},\tx_a,\emptystring,\mathsf{ColOwner}(\st,\tx),\tx_a,g,\tx_p,\tx_v,\tx_v,\tx_{\bf d},0,\top) & \tx_a\neq\varnothing
+		\creation(\st^0,\sender{\tx},\sender{\tx},\emptystring, \mathsf{ColOwner}(\st,\tx),g,\tx_p,\tx_v,\tx_{\bf i},0,\zeta,\true) &  \tx_a=\varnothing \\
+		\execution(\st^0,\sender{\tx},\sender{\tx},\tx_a,\emptystring,\mathsf{ColOwner}(\st,\tx),\tx_a,g,\tx_p,\tx_v,\tx_v,\tx_{\bf d},0,\true) & \tx_a\neq\varnothing
 	\end{cases}
 \end{align}
 %

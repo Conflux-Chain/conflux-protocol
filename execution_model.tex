@@ -303,21 +303,15 @@ the recipient addresses $I_\vec{t}\cdot I_a$ and storage owner $I_i$ are passed 
 When calling a contract, {\name} virtual machine makes sure that re-entrance attack is impossible by preventing re-entrance message call, except the message call matches some requirements which make re-entrance attack impossible. 
 
 To be specific, the {\name} virtual machine maintains a call stack $I_\vec{t}$ and 
-prevents the message call
+enters \emph{reentrance protection mode} in a message call
 when the callee is already in the call stack but different from the caller before executing the code invoked by each message call.
 By requiring that the callee being different from the caller, it is still allowed to call and execute other functions in the caller's contract.
 Because in such cases the developer should be able to fully anticipate the execution flow
 and we do not consider it necessary to trigger the re-entrance protection.
-
-If the message call is indeed re-entering some other contract in the call stack,
-the re-entrance protection is triggered 
-unless two requirements are satisfied: a) the available gas in sub-execution of message call is no more than $G_{stipend}$, 
-b) the message call has no call data. 
-It means that the message call generated from solidity built-in function {\tt send()} and {\tt transfer()} will never trigger
-re-entrance protection. This design allows some widely used contract logic currently, 
-e.g. withdrawing \cfx from a contract when the transfer has to happen via a re-entrance call. 
 %
-When the re-entrance protection is triggered, {\name} virtual machine deals with it in the same way as ``call stack overflow'' or ``not enough balance for value transfer''. It stops calling the next contract and refunds all the available gas.
+The execution with \emph{reentrance protection mode} is exactly the same as execution with static flag set by $\op{STATICCALL}$. %This design allows some widely used contract logic currently, 
+%e.g. withdrawing \cfx from a contract when the transfer has to happen via a re-entrance call. 
+
 
 
 

@@ -1,7 +1,7 @@
 #!/bin/bash
 function build() {
     nodiff=true
-    (git diff --no-ext --quiet && git diff --no-ext --cached --quiet) || nodiff=false
+    (git diff --quiet && git diff --cached --quiet) || nodiff=false
     if $nodiff; then
         commitid=$(git rev-parse --short HEAD)
         version="Nightly "$commitid
