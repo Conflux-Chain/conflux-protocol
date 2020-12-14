@@ -9,7 +9,7 @@ The execution model specifies the system state transition on input of a sequence
 The state transition function is formalized as a virtual state machine,
 which 
 % This virtual machine 
-is Turing-complete except that its running time and storage space is intrinsically bounded by the limited amount of available gas and collateral for storage.
+is Turing-complete except that its running time and storage space are intrinsically bounded by the limited amount of available gas and collateral for storage.
 % 
 For this moment we implement the well-known Ethereum Virtual Machine (EVM), and the execution model follows \cite{ETH_yellow}.
 
@@ -160,7 +160,7 @@ The machine state $\mst$ is defined as the tuple $(g, \mathrm{pc}, \vec{m}, i, \
 The memory contents $\mst_{\vec{m}}$ are a series of zeros of size $2^{256}$.
 The return stack $\mst_{\vec{r}}$ is limited to $1023$ items.
 
-For the ease of reading, the instruction mnemonics, e.g. $\op{ADD}$, should be interpreted as their numeric eqdefalents; the full table of instructions and their specifics is given in Appendix \ref{app:instruction-set}.
+For the ease of reading, the instruction mnemonics, e.g. $\op{ADD}$, should be interpreted as their numeric equivalents; the full table of instructions and their specifics are given in Appendix \ref{app:instruction-set}.
 
 For the purposes of defining $Z$, $H$ and $O$, we define $w$ as the current operation to be executed:
 \begin{equation}\label{eq:currentoperation}
@@ -173,7 +173,7 @@ w \eqdef
 
 Furthermore, we let $\popstack$ and $\pushstack$ denote the fixed number of stack items removed from and pushed into the data stack $\mst_{\mathbf{s}}$ by executing an instruction.
 Both $\popstack$ and $\pushstack$ are assumed subscriptable on the instruction. 
-Similarly we define $\poprstack$ and $\pushrstack$ for the return stack $\mst_{\mathbf{r}}$, which is only accessed when entering or returning from subroutines on $\op{JUMPSUB}$ and $\op{RETURNSUB}$ instructions. 
+Similarly, we define $\poprstack$ and $\pushrstack$ for the return stack $\mst_{\mathbf{r}}$, which is only accessed when entering or returning from subroutines on $\op{JUMPSUB}$ and $\op{RETURNSUB}$ instructions. 
 An instruction cost function $\cost$ evaluates to the full cost, in gas, of executing the given instruction.
 
 \paragraph{Exceptional Halting.}\hypertarget{Exceptional_Halting_function_Z}{}\linkdest{zhalt}
@@ -329,14 +329,14 @@ In Ethereum, the cost of operation $\op{SSTORE}$ is $G_{sset}=20000$ gas when th
 and  $G_{sreset}=5000$ gas when the storage value is set to zero. 
 Ethereum will also refund $R_{sclear}=15000$ gas when the storage value is set to zero from non-zero. 
 
-In {\name}, since cost of using storage is reflected by collateral for storage, there is no need to charge space consumption in gas. 
+In {\name}, since the cost of using storage is reflected by collateral for storage, there is no need to charge space consumption in gas. 
 Thus {\name} charged $G_{sset}=5000$ gas for all the $\op{SSTORE}$ operation, 
 regardless of the storage value,
 and there is no gas refund either. 
 Furthermore, the {\name} ledger $\st$ tracks the owner of every storage entry with non-zero value. 
 The execution substate $A$ records all changes on ownership of storage entries. 
 
-\paragraph{$\op{SUICIDE}$ operation.} When executing the $\op{SUICIDE}$ operation, if the address receiving refund balance is invalid (i.e. \\$\mathsf{Type}_{\mst_{\mathbf{s}}[0]\mod2^{160}}\notin\set{\typereserved,\typenormal,\typecontract}$) the refund balance will be burnt. Otherwise, the $\op{SELFDESTRUCT}$ operation transforms $(\st,A)$ into $(\st',A')$ following the same steps as Ethereum. 
+\paragraph{$\op{SUICIDE}$ operation.} When executing the $\op{SUICIDE}$ operation, if the address receiving refund balance is invalid (i.e. \\$\mathsf{Type}_{\mst_{\mathbf{s}}[0]\mod2^{160}}\notin\set{\typereserved,\typenormal,\typecontract}$) the refund balance will be burnt. Otherwise, the $\op{SUICIDE}$ operation transforms $(\st,A)$ into $(\st',A')$ following the same steps as Ethereum. 
 
 % Compared with Ethereum, Conflux updates the storage collateral of code owner for destructed contract and refunds the sponsor balance for gas at this time. Notice that the sponsor balance for collateral will not be refunded until all the storage collateral has been charged from or refunded to account balance. 
 
