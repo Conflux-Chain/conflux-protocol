@@ -19,23 +19,21 @@ We refer to the global parameter as the \emph{base block award} or simply \emph{
 
 
 
-	The base block award starts at $\baseaward(\gblock) = \initialblockreward$ \coinsign per block. 
-	The based block award is adjusted in granularity of quarter. (i.e., $\decayperiodinblock$ blocks, $\decayperiodinday$ days in expectation).
-	In the first $\decaystartinquarter$ quarters (i.e. roughly $\decaystartinyear$ years), the base block award is the initial value $\initialblockreward$ \coinsign per block.
-	In the next $\decayquarters$ quarters (i.e. roughly $\decayyears$ years), it decreases by $\sqrt[\decayquarters]{1/4}$ (about $\decaybypercent\%$) each quarter. 
-	%
-	Eventually the block reward is fixed at $\eventualblockreward$ \coinsign per block and annual inflation rate of mining issuance is below $\targetinflationpercent$ percent.
-	
+	The base block award starts at $\baseaward(\gblock) = \initialblockreward$ \coinsign per block,
+	and reduces to $\tanzanitebasereward$ \coinsign stated at the \tanzaniteepoch epoch. 
+	% The based block award is adjusted in granularity of quarter. (i.e., $\decayperiodinblock$ blocks, $\decayperiodinday$ days in expectation).
+	% In the first $\decaystartinquarter$ quarters (i.e. roughly $\decaystartinyear$ years), the base block award is the initial value $\initialblockreward$ \coinsign per block.
+	% In the next $\decayquarters$ quarters (i.e. roughly $\decayyears$ years), it decreases by $\sqrt[\decayquarters]{1/4}$ (about $\decaybypercent\%$) each quarter. 
+	% %
+	% Eventually the block reward is fixed at $\eventualblockreward$ \coinsign per block and annual inflation rate of mining issuance is below $\targetinflationpercent$ percent.
+	% 升级公告
 	For every pivot block $\block$, the base award is defined as follows:
 	\begin{align}
 		\baseaward(\block)&\eqdef
 		\begin{cases}
-			\initialblockreward \times 10^{18} & \mbox{if $\quarter(\block)<\decaystartinquarter$} \\
-			\left\lfloor\initialblockreward \times 10^6 \times (1/4)^{(\quarter(\block)-\decaystartinquarter)/\decayquarters}\right\rfloor\times 10^{12} & \mbox{if $ \decaystartinquarter\le \quarter(\block) < \decayendinquarter$} \\
-			\eventualblockreward \times 10^{18} & \mbox{if $\quarter(\block) \ge \decayendinquarter$}
-		\end{cases} \\ 
-		\mbox{where: }& \\ 
-		\quarter(\block) & \eqdef \left\lfloor\frac{|\past(\block)|}{\decayperiodinblock}\right\rfloor
+			\initialblockreward \times 10^{18} & \mbox{if $\block_{\head_h}<\tanzaniteepoch$} \\
+			\tanzanitebasereward \times 10^{18} & \mbox{if $\block_{\head_h}\ge \tanzaniteepoch$}
+		\end{cases}
 	\end{align}
 
 	For every non-pivot block $\block$,
