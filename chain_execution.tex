@@ -13,12 +13,12 @@ The pivot blocks divided into $\mathbf{L}$ into several epochs.  For $k\ge 1$, t
 
 \subsection{Initial state}
 
-{\color{red} This sub-section is a deprecated version.}
+% {\color{red} This sub-section is a deprecated version.}
 
-The initialization world state $\st^0$ is set as follows. A list $\vec{a}$ with elements $(a,b)$ gives the addresses $a$ and their balance $b$ when the \name blockchain launched.  
-\begin{align}
-	\forall (a,b)\in \vec{a}, \st^0[a]= \account^0 \quad \mbox{except:} \account_b=b 
-\end{align}
+% The initialization world state $\st^0$ is set as follows. A list $\vec{a}$ with elements $(a,b)$ gives the addresses $a$ and their balance $b$ when the \name blockchain launched.  
+% \begin{align}
+% 	\forall (a,b)\in \vec{a}, \st^0[a]= \account^0 \quad \mbox{except:} \account_b=b 
+% \end{align}
 
 % In Oceanus, this list contains the following two addresses for faucet. Each address has initialization balance $5\times 10^{33}$ \unit, i.e., 5000 trillion \coinsign.
 % %
@@ -37,14 +37,14 @@ The initialization world state $\st^0$ is set as follows. A list $\vec{a}$ with 
 % 	a_{\sf stake} &\eqdef \stakingcontract
 % \end{align}
 
-The global statistic information will be set as follows:
+Before executing transactions in the genesis block, Conflux sets the following global static information to world state $\st_{0}$.
 
 \begin{align}
-	\st^0[a_{\sf stake}][k_1]_v & \eqdef \blockinyear\times 2^{80} \\ 
-	\st^0[a_{\sf stake}][k_2]_v & \eqdef \blockinyear\times 40000 \\
-	\st^0[a_{\sf stake}][k_3]_v & \eqdef 0 \\
-	\st^0[a_{\sf stake}][k_4]_v & \eqdef 0 \\
-	\st^0[a_{\sf stake}][k_5]_v & \eqdef \sum\nolimits_{(a,b)\in \vec{a}} b \\
+	\st_{0}[a_{\sf stake}][k_1]_v & \eqdef \blockinyear\times 2^{80} \\ 
+	\st_{0}[a_{\sf stake}][k_2]_v & \eqdef \blockinyear\times 40000 \\
+	\st_{0}[a_{\sf stake}][k_3]_v & \eqdef 0 \\
+	\st_{0}[a_{\sf stake}][k_4]_v & \eqdef 0 \\
+	\st_{0}[a_{\sf stake}][k_5]_v & \eqdef \sum\nolimits_{(a,b)\in \vec{a}} b \\
 	\mbox{where:}&\\
 	a_{\sf stake} &\eqdef \stakingcontract \\
 	k_1 &\eqdef \sf [accumulate\char`_interest\char`_rate]_{\sf ch} \\ 
@@ -54,12 +54,13 @@ The global statistic information will be set as follows:
     k_5 &\eqdef \sf [total\char`_issued\char`_tokens]_{\sf ch} 
 \end{align}
 
+% Besides updating the world state, the protocol also generates a receipt list $\mathbf{R}_k$ for epoch execution. 
 
 \subsection{Epoch execution}
 
-The blockchain is executed epoch by epoch started with epoch 1. Let $\st_{k-1}$ denote the world state after the execution of epoch $k-1$. The Conflux protocol updates world state from $\st_{k-1}$ to $\st_k$ as follows. Besides updating the world state, the protocol also generates a receipt list $\mathbf{R}_k$ for epoch execution. 
+The blockchain is executed epoch by epoch started with epoch 0. The epoch 0 only contains the genesis block. Let $\st_{k+1}$ denote the world state after the execution of epoch $k$. The Conflux protocol updates world state from $\st_{k}$ to $\st_{k+1}$ as follows. 
 
-\paragraph{Blocks execution. } First, all the blocks in epoch are executed in sequence by block execution function $\transition_{\sf block}(\st,\block,\mathbf{L}[0..(\tau-1)])=(\st',\mathbf{R}')$, where $\block$ is the block to be executed, $\tau$ is the the index of block $\block$ in $\mathbf{L}$ and $\mathbf{R}'$ is the sequence of transaction receipts. After executing all the blocks, the resultant world-state $\st^*$ becomes the input of the next step and the concatenation of block receipts becomes epoch receipts $\mathbf{R}$. Function $\transition_{\sf block}(\st,\block,\vec{L})$ is defined in section~\ref{sec:block_exec}.
+\paragraph{Blocks execution. } First, all the blocks in epoch are executed in sequence by block execution function $\transition_{\sf block}(\st,\block,\mathbf{L}[0..(k-1)])=(\st^*,\mathbf{R}')$, where $\block$ is the block to be executed,  $\mathbf{L}$ is a series of blocks output by the consensus protocol, $k$ is the the index of block $\block$ in $\mathbf{L}$ and $\mathbf{R}'$ is the sequence of transaction receipts. After executing all the blocks, the resultant world-state $\st^*$ becomes the input of the next step and the concatenation of block receipts becomes epoch receipts $\mathbf{R}$. Function $\transition_{\sf block}(\st,\block,\vec{L})$ is defined in section~\ref{sec:block_exec}.
 
 \paragraph{Distribute mining reward. } Since Conflux incentive mechanism puts off the mining reward distribution for $\minerfreeze$ epochs, after execution of epoch $k$, Conflux distribute the mining reward for blocks in $\mathbf{E}_{k-\minerfreeze}$. The computing of mining reward for blocks in epoch $k-\minerfreeze$ requires the following context information.
 \begin{itemize}[nosep]
@@ -95,4 +96,4 @@ The block execution function $\transition_{\sf block}(\st,\block,\vec{L})$ consi
 
 \paragraph{Execute transactions in block}
 
-Each block $\block$ contains a series of transactions $\block_{\sf Ts}$. Start with world state $\st^{*}$, \name executes these transactions in sequence by a transform function $\Upsilon(\st,\tx,\vec{L})=(\st',R)$, which updates world state from $\st$ to $\st'$ by processing transaction $\tx$ and outputs a receipt $R$. The input $\vec{L}$ represents the blocks in front of the present block.After executing all the transaction, the resultant state $\st'$ and the concatenation of all the transaction receipts $\mathbf{R}'$ consists of the output of function $\transition_{\sf block}$.
+Each block $\block$ contains a series of transactions $\block_{\sf Ts}$. Start with world state $\st^{*}$, \name executes these transactions in sequence by a transform function $\Upsilon(\st^{*},\tx,\vec{L})=(\st',R)$, which updates world state from $\st^{*}$ to $\st'$ by processing transaction $\tx$ and outputs a receipt $R$. The input $\vec{L}$ represents the blocks in front of the present block.After executing all the transaction, the resultant state $\st'$ and the concatenation of all the transaction receipts $\mathbf{R}'$ consists of the output of function $\transition_{\sf block}$.
