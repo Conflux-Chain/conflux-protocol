@@ -6,6 +6,8 @@
 
 The fee schedule $G$ is a tuple of $35$ scalar values corresponding to the relative costs, in gas, of a number of abstract operations that a transaction may effect.
 
+The fee schedule for core space is list as follows. 
+
 \begin{center}
 	\begin{tabu}{l r l}
 		\toprule
@@ -34,7 +36,7 @@ The fee schedule $G$ is a tuple of $35$ scalar values corresponding to the relat
 		$G_{exp}$ & 10 & Partial payment for an $\op{EXP}$ operation. \\
 		$G_{expbyte}$ & 50 & Partial payment when multiplied by $\lceil\log_{256}(exponent)\rceil$ for the $\op{EXP}$ operation. \\
 		$G_{memory}$ & 3 & Paid for every additional word when expanding memory. \\
-		\linkdest{G__txcreate}{}$G_\text{txcreate}$ & 32000 & Paid by all contract-creating transactions after the {\textit{Homestead} transition}.\\
+		\linkdest{G__txcreate}{}$G_{txcreate}$ & 32000 & Paid by all contract-creating transactions after the {\textit{Homestead} transition}.\\
 		\linkdest{G__txdatazero}{}$G_{txdatazero}$ & 4 & Paid for every zero byte of data or code for a transaction. \\
 		\linkdest{G__txdatanonzero}{}$G_{txdatanonzero}$ & 68 & Paid for every non-zero byte of data or code for a transaction. \\
 		\linkdest{G__transaction}{}$G_{transaction}$ & 21000 & Paid for every transaction. \\
@@ -50,3 +52,5 @@ The fee schedule $G$ is a tuple of $35$ scalar values corresponding to the relat
 		\bottomrule
 	\end{tabu}
 \end{center}
+
+The fee schedule for eSpace is same as Ethereum (Byzantium version), except $G_{sset}$, $G_{newaccount}$ and $G_{codedeposit}$ are the twice in Ethereum. 

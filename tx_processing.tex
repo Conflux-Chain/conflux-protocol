@@ -12,6 +12,10 @@ The execution of a transaction defines the transform function $\Upsilon(\st,\tx,
 
 In what follows we focus on the \name specific designs in the execution.
 
+\paragraph{Spaces (Since CIP-90)}
+
+Each transaction belongs to one space. The sender and the receiver of a transaction always belongs to the same space in a transaction. 
+
 \paragraph{Gas and Payment}\label{subsec:gas_and_pay}
 
 As defined in Section~\ref{sec:tx} every transaction $\tx$ has two fields of {\bf gasLimit} and {\bf gasPrice} that declare the specific amount of associated gas $\tx_g$ and the price $\tx_p$ of per unit gas.
@@ -48,29 +52,30 @@ In computing the accumulated gas used of the whole block, the non-refundable gas
 %
 Thus the accumulated gas used of a block is intrinsically taking the summation of field $R_g$ over transaction receipts.
 
-\paragraph{Storage Limit and Storage Collateral}
+\paragraph{Storage Limit and Storage Collateral for core space transactions}
 
-Every transactions also have a filed of \textbf{storageLimit} that declare the maximum storage bytes $\tx_\ell$ increasing for the present transaction. Before transaction execution, besides gas fee and transferred value, the sender $\sender{\tx}$ must have enough balance for storage collateral for specified \textbf{storageLimit}, i.e., $\tx_\ell\times\collateralperbyte\;\unit$. Unlike the gas fee, these collateral will not be charged or locked at this time. At the end of transaction execution, if the sender doesn't have enough balance paying for the increased storage collateral or the increased storage bytes of sender exceeds storage limit, the transaction execution fails. More details for collateral for storage is specified in section~\ref{sec:collateral}. 
+Every core space transactions also have a filed of \textbf{storageLimit} that declare the maximum storage bytes $\tx_\ell$ increasing for the present transaction. Before transaction execution, besides gas fee and transferred value, the sender $\sender{\tx}$ must have enough balance for storage collateral for specified \textbf{storageLimit}, i.e., $\tx_\ell\times\collateralperbyte\;\unit$. Unlike the gas fee, these collateral will not be charged or locked at this time. At the end of transaction execution, if the sender doesn't have enough balance paying for the increased storage collateral or the increased storage bytes of sender exceeds storage limit, the transaction execution fails. More details for collateral for storage is specified in section~\ref{sec:collateral}. 
 
-\paragraph{Sponsorship}
+\paragraph{Sponsorship for core space transactions}
 
-In case the transaction $\tx$ is calling a smart contract $\contract$ with \textbf{sponsor for gas} and $\tx$ is qualified for the subsidy as checked in function $\mathsf{Whitelist}(\cdot)$ defined in \cref{eq:whitelist}, 
+In case a core space transaction $\tx$ is calling a smart contract $\contract$ with \textbf{sponsor for gas} and $\tx$ is qualified for the subsidy as checked in function $\mathsf{Whitelist}(\cdot)$ defined in \cref{eq:whitelist}, 
 $\contract$ is responsible for the purchase of gas if it has sufficient \textbf{sponsor balance for gas}
 and the transaction \textbf{gasLimit} $\tx_g$ does not exceed the {\bf sponsor limit for gas}, 
 and otherwise the sender $\sender{\tx}$ is still responsible for the whole purchase of gas as if there were no sponsor at all. 
 %
 Formally, we define function $\mathsf{GasElig}(\st,\tx)$ to check whether transaction $\tx$ is eligible for gas consumption sponsorship and define function $\mathsf{GasSpr}(\st,\tx)$ to check where $\tx$ is actually sponsored for gas consumption. 
 \begin{align}
-	\mathsf{GasElig}(\st,\tx)&\eqdef \quad \mathrm{Type}_{\tx_a}=\typecontract \;\wedge\; \mathsf{Whitelist}(\st,\sender{\tx},\contract) \;\wedge\; \st[\tx_a]_p[\mathsf{gas}]_a\neq 0 \;\wedge\; \tx_g\times\tx_p \le \st[\tx_a]_p[\mathsf{limit}] \\
-	\mathsf{GasSpr}(\st,\tx) &\eqdef\quad  \mathsf{GasElig}(\st,\tx) \;\wedge\; \st[\tx_a]_p[{\sf gas}]_b\ge \tx_g\times\tx_p
+	\mathsf{GasElig}(\st,\tx)\eqdef \quad &\tx_s=\mathsf{Core} \;\wedge\; \mathrm{Type}_{\tx_a}=\typecontract \;\wedge\; \mathsf{Whitelist}(\st,\sender{\tx},\contract) \\
+	&\;\wedge\; \st[\tx_a]_p[\mathsf{gas}]_a\neq 0 \;\wedge\; \tx_g\times\tx_p \le \st[\tx_a]_p[\mathsf{limit}] \\
+	\mathsf{GasSpr}(\st,\tx) \eqdef\quad  &\tx_s=\mathsf{Core} \;\wedge\; \mathsf{GasElig}(\st,\tx) \;\wedge\; \st[\tx_a]_p[{\sf gas}]_b\ge \tx_g\times\tx_p
 \end{align}
 %
 where function $\mathsf{Whitelist}(\cdot)$ is defined in \cref{eq:whitelist}. 
 
 If a contract has \textbf{sponsor for collateral}, the storage collateral can also be sposnored by a contract. Formally,
 \begin{align}
-	\mathsf{ColElig}(\st,\tx) &\eqdef \quad \mathrm{Type}_{\tx_a}=\typecontract \;\wedge\; \mathsf{Whitelist}(\st,\sender{\tx},\contract) \;\wedge\; \st[\tx_a]_p[\mathsf{col}]_a\neq 0 \\
-	\mathsf{ColSpr}(\st,\tx) &\eqdef\quad  \mathsf{ColElig}(\st,\tx) \;\wedge\; \st[\tx_a]_p[{\sf col}]_b\ge \tx_\ell\times \collateralperbyte
+	\mathsf{ColElig}(\st,\tx) &\eqdef \quad \tx_s=\mathsf{Core} \;\wedge\; \mathrm{Type}_{\tx_a}=\typecontract \;\wedge\; \mathsf{Whitelist}(\st,\sender{\tx},\contract) \;\wedge\; \st[\tx_a]_p[\mathsf{col}]_a\neq 0 \\
+	\mathsf{ColSpr}(\st,\tx) &\eqdef\quad  \tx_s=\mathsf{Core} \;\wedge\; \mathsf{ColElig}(\st,\tx) \;\wedge\; \st[\tx_a]_p[{\sf col}]_b\ge \tx_\ell\times \collateralperbyte
 \end{align}
 
 \subsection{Transaction Execution}
@@ -80,13 +85,13 @@ If a contract has \textbf{sponsor for collateral}, the storage collateral can al
 
 Before being executed, a transaction $\tx$ in the processing queue must pass the following secondary test of intrinsic validity. 
 \begin{enumerate}[nosep]
-	\item The current epoch is in the range specified by \textbf{epochHeight}, 
-	i.e. current epoch height is in $[\tx_e - \txepochbound, \tx_e + \txepochbound]$.
-	
 	\item The transaction \textbf{nonce} is valid,
    i.e. $\tx_n = \st\left[\sender{\tx}\right]_n$ where $\st$ is the current world-state.
 
-   \item The recipient address is valid , i.e. the type indicator (first $4$-bit) of $\tx_a$ belongs to $\set{\typereserved,\typenormal,\typecontract}$.
+   \item (For core space only) The current epoch is in the range specified by \textbf{epochHeight}, 
+	i.e. current epoch height is in $[\tx_e - \txepochbound, \tx_e + \txepochbound]$.	
+
+   \item (For core space only) The recipient address is valid , i.e. the type indicator (first $4$-bit) of $\tx_a$ belongs to $\set{\typereserved,\typenormal,\typecontract}$.
 \end{enumerate}
 
 Note that the local legality of the transaction, 
@@ -130,18 +135,18 @@ We define the state $\st^*$:
 
 The up-front payment of a transaction $\tx$ first figures out whether the gas consumption is sponsored. $\tx$ is sponsored on gas consumption if $\tx$ is eligible for sponsorship on gas consumption and the calling contract has sufficient \textbf{sponsor balance for gas fee}. 
 \begin{itemize}
-	\item If the gas consumption of $\tx$ is sponsored, the world-state $\st^{**}$ after gas consumption payment is as follows: 
+	\item If the gas consumption of $\tx$ is sponsored, it must be a core space transaction. The world-state $\st^{**}$ after gas consumption payment is as follows: 
 	\begin{align}
 		\st^{**}  &\eqdef \st^* \qquad \mbox{  except:}\\
-		\st^{**}\left[\contract_{addr}\right]_p[{\sf gas}]_b &\eqdef \st^*\left[I_a\right]_p[{\sf gas}]_b-\tx_g\times\tx_p
+		\st^{**}\left[\contract_{addr}\right]_p[{\sf gas}]_b &\eqdef \st^*\left[\sender{\tx}\right]_p[{\sf gas}]_b-\tx_g\times\tx_p
 	\end{align} 
 	
 	\item Otherwise, the sender $\sender{\tx}$ is required to pay for the gas consumption. 
-	The balance of $\sender{\tx}$ should satisfy $\st^{*} \left[\sender{\tx}\right]_b \ge \tx_g\times\tx_p+\tx_v$ and otherwise a \emph{not enough balance exception} is generated. The handling of \emph{not enough balance exception} will be discussed later.
+	The balance of $\sender{\tx}$ should satisfy $\st^{*} \left[(\sender{\tx},\tx_s)\right]_b \ge \tx_g\times\tx_p+\tx_v$ and otherwise a \emph{not enough balance exception} is generated. The handling of \emph{not enough balance exception} will be discussed later.
 	The world-state after the gas consumption payment is defined as: 
 	\begin{align}
 		\st^{**}  &\eqdef \st^* \qquad \mbox{  except:}\\
-		\st^{**} \left[\sender{\tx}\right]_b &\eqdef \max\set{\st^*\left[\sender{\tx}\right]_b-\tx_g\times\tx_p,0}
+		\st^{**} \left[(\sender{\tx},\tx_s)\right]_b &\eqdef \max\set{\st^*\left[(\sender{\tx},\tx_s)\right]_b-\tx_g\times\tx_p,0}
 	\end{align}
 \end{itemize}
 
@@ -179,7 +184,7 @@ In this case, the resultant world-state $\st'$ is reverted to $\st$, the nonce o
 
 In other cases, sender $\sender{\tx}$ is responsible for the exception. The resultant world-state is $\st'$ is reverted to $\st^{**}$ and the receipt is composed as follows if sender is non-existent. (i.e. $\st[\sender{\tx}]\neq\varnothing$).
 \begin{align}
-	&R_u=R'_u+\tx_g && R_f=\min\{\tx_g\times\tx_p,\st[\sender{\tx}]_b\} && R_g=\mathsf{GasElig}(\st,\tx) && R_{\bf l}=\emptystring \\
+	&R_u=R'_u+\tx_g && R_f=\min\{\tx_g\times\tx_p,\st[(\sender{\tx},\tx_s)]_b\} && R_g=\mathsf{GasElig}(\st,\tx) && R_{\bf l}=\emptystring \\
 	&R_z=1 && R_s=0 && R_{\bf o}=\emptystring && R_{\bf i}=\emptystring
 \end{align}
 
@@ -233,8 +238,8 @@ We define the tuple of post-execution provisional state $\st^{P}$, remaining gas
 \begin{align}\label{def:transform}
 	(\st^{P},g',A,z)\eqdef
 	\begin{cases}
-		\creation(\st^0,\sender{\tx},\sender{\tx},\emptystring, \mathsf{ColOwner}(\st,\tx),g,\tx_p,\tx_v,\tx_{\bf i},0,\zeta,\true) &  \tx_a=\varnothing \\
-		\execution(\st^0,\sender{\tx},\sender{\tx},\tx_a,\emptystring,\mathsf{ColOwner}(\st,\tx),\tx_a,g,\tx_p,\tx_v,\tx_v,\tx_{\bf d},0,\true) & \tx_a\neq\varnothing
+		\creation(\st^0,\tx_s,\sender{\tx},\sender{\tx},\emptystring, \mathsf{ColOwner}(\st,\tx),g,\tx_p,\tx_v,\tx_{\bf i},0,\zeta,\true) &  \tx_a=\varnothing \\
+		\execution(\st^0,\tx_s,\sender{\tx},\sender{\tx},\tx_a,\emptystring,\mathsf{ColOwner}(\st,\tx),\tx_a,g,\tx_p,\tx_v,\tx_v,\tx_{\bf d},0,\true) & \tx_a\neq\varnothing
 	\end{cases}
 \end{align}
 %
@@ -244,7 +249,7 @@ The specifications of function $\creation$ and $\execution$ are given in Section
 
 \subsubsection{Postprocessing}\label{sec:tx_post_process}
 
-\paragraph{Storage collateral refund and charge.}
+\paragraph{Storage collateral refund and charge for core space transactions.}
 
 After the message call or contract creation is processed, Conflux checks whether the incremental storage exceeds storage limit specified in $\tx_\ell$ and if the storage owner has enough balance for storage collateral. 
 Let $i\eqdef \mathsf{ColOwner}(\st,\tx)$ be the address who owns modified storage entries and $v$ be the available balance to pay for storage collateral, which is defined as 
@@ -299,7 +304,7 @@ The refund of gas fee is applied on world-state $\st^{*}$ and results in $\st'\e
 	& \quad \begin{cases} 
 		\st^2\left[\tx_a\right]_p[{\sf gas}]_b \eqdef \st^1\left[\tx_a\right]_p[{\sf gas}]_b+g^{\dagger}\times \tx_p 
 		& \mbox{if $\mathsf{GasSpr}(\st,\tx)=\true$}\\
-		\st^2 \left[\sender{\tx}\right]_b \eqdef \st^1\left[\sender{\tx}\right]_b + g^{\dagger}\times \tx_p 
+		\st^2 \left[(\sender{\tx},\tx_s)\right]_b \eqdef \st^1\left[(\sender{\tx},tx_s)\right]_b + g^{\dagger}\times \tx_p 
 		& \mbox{if $\mathsf{GasSpr}(\st,\tx)=\false$}
 	\end{cases} 
 \end{align}
@@ -339,8 +344,8 @@ Then we delete all the contracts and burn all the rest balance
 %
 \begin{align}
 	&\st' \eqdef \st^4 \qquad \mbox{  except:} \\ 
-	&\forall a \in A_{\bf s}, \st'[a] = \varnothing \\ 
-	&\st'[a_{\sf stake}]_{\bf s}[k_3] \eqdef \st^4[a_{\sf stake}]_{\bf s}[k_3] - \sum_{a\in A_{\bf s}} (\st[a]_b + \st[a]_t) \\
+	&\forall (a,p) \in A_{\bf s}, \st'[(a,p)] = \varnothing \\ 
+	&\st'[a_{\sf stake}]_{\bf s}[k_3] \eqdef \st^4[a_{\sf stake}]_{\bf s}[k_3] - \sum_{(a,p)\in A_{\bf s}\;\wedge \; p=\mathsf{Core}} (\st[a]_b + \st[a]_t) \\
 	&\mbox{where:}  \\
 	&a_{\sf stake} \eqdef \stakingcontract \\ 
 	&k_3 \eqdef {\sf [total\char`_issued\char`_tokens]_{\sf ch}}  
@@ -352,6 +357,7 @@ Now the transaction execution is accomplished.
 The returning status code $z$ denotes whether the execution succeeds or not. 
 Supposing that $R'$ is the receipt of last transaction, 
 the receipt of current transaction will be as follows:
+\footnote{Note: before CIP-78, the actual Conflux system has a wrong implementation, see CIP-78 for details.}
 \begin{align}
 	\begin{array}{llll}
 		R_u=R'_u+g' & R_f = (\tx_g-g^{\dagger})\times \tx_p & R_g = \mathsf{GasSpr}(\st,\tx) & R_{\bf l}=A'_{\bf l} \\ 

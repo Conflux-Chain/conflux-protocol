@@ -75,9 +75,9 @@ Given a new block $\block$ that is no longer {\bf suspending}, the validation of
 
   	      	      	% \item $\tx$ has a valid recipient, i.e. the type indicator (first $4$-bit) of $\tx_a$ belongs to $\set{\typereserved,\typenormal,\typecontract}$;
 
-	      	      	\item $\tx$ has correct chain id $\tx_c = \chainid$;
+	      	      	\item $\tx$ has correct chain id: $\tx_c = \chainid$ (for core space) or $\tx_c=\evmchainid$ (for eSpace);
 					
-					\item the \textbf{gasLimit} $\tx_g$ is no smaller than the intrinsic gas $g_0$, where
+					\item (Disabled since CIP-76) the \textbf{gasLimit} $\tx_g$ is no smaller than the intrinsic gas $g_0$, where
 					\begin{align}\label{def:g0}
 						g_0\eqdef 
 						&\sum_{i\in \tx_{\bf i}, \tx_{\bf d}} \begin{cases}
@@ -97,7 +97,7 @@ Given a new block $\block$ that is no longer {\bf suspending}, the validation of
 	      	      % \item \guangsays{anything else?}
 	      \end{itemize}
 	      
-	      	
+	\item {\bf ESpace Validation (activated since CIP-90).} The block can pack eSpace transaction only if the block height divides 5 (a.k.a., $5|\head(\block)_h$). The total gas limit of eSpace transactions can not exceed $\lfloor\head(\block)_\ell/2\rfloor$.
 	      
 	\item If $\block$ passes all above steps, then it is marked {\bf accept} and added into the \tg structure, otherwise it is marked {\bf reject} and discarded.
 \end{enumerate}

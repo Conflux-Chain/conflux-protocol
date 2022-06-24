@@ -339,7 +339,7 @@ When querying other block numbers, the returned result is always $0$.\\
 &&&& $\mst'_{\mathbf{s}}[0] \equiv I_{{\head}_{\ell}}$ \\
 \midrule
 \linkdest{CHAINID}{} 0x46 & $\op{CHAINID}$ & 0 & 1 & Get the chain ID. \\
-&&&& $\mst'_{\mathbf{s}}[0] \equiv \chainid$ \\
+&&&& $\mst'_{\mathbf{s}}[0] \equiv \chainid$ (core space) or $\evmchainid$ (eSpace) \\
 \midrule
 \linkdest{SELFBALANCE}{} 0x47 & $\op{SELFBALANCE}$ & 0 & 1 & Get balance of the currently executing account. \\
 &&&& $\mst'_{\mathbf{s}}[0] \equiv  \begin{cases}\st[I_{\mathrm{a}}]_{\mathrm{b}}& \text{if} \quad \st[I_{\mathrm{a}} \mod 2^{160}] \neq \varnothing\\0&\text{otherwise}\end{cases}$ \\
@@ -529,7 +529,7 @@ When querying other block numbers, the returned result is always $0$.\\
 \linkdest{create}{} 0xf0 & $\op{CREATE}$ & 3 & 1 & Create a new account with associated code. \\
 &&&& $\mathbf{i} \equiv \mst_{\mathbf{m}}[ \mst_{\mathbf{s}}[1] \dots (\mst_{\mathbf{s}}[1] + \mst_{\mathbf{s}}[2] - 1) ]$ \\
 &&&& $\zeta \equiv \varnothing$ \\
-&&&& $(\st', \mst'_{\mathrm{g}}, A^+, \mathbf{o}) \equiv \begin{cases}\Lambda(\st^*, I_{\mathrm{a}}, I_{\mathrm{o}}, I_\vec{t}\cdot I_a, I_i, L(\mst_{\mathrm{g}}), I_{\mathrm{p}}, \mst_{\mathbf{s}}[0], \mathbf{i}, I_{\mathrm{e}} + 1, \zeta, I_{\mathrm{w}}) & \text{if} \quad \mst_{\mathbf{s}}[0] \leqslant \st[I_{\mathrm{a}}]_{\mathrm{b}} \; \\ \quad &\wedge\; I_{\mathrm{e}} < 1024\\ \big(\st, \mst_{\mathrm{g}}, \varnothing\big) & \text{otherwise} \end{cases}$ \\
+&&&& $(\st', \mst'_{\mathrm{g}}, A^+, \mathbf{o}) \equiv \begin{cases}\Lambda(\st^*, I_{\mathrm{c}}, I_{\mathrm{a}}, I_{\mathrm{o}}, I_\vec{t}\cdot I_a, I_i, L(\mst_{\mathrm{g}}), I_{\mathrm{p}}, \mst_{\mathbf{s}}[0], \mathbf{i}, I_{\mathrm{e}} + 1, \zeta, I_{\mathrm{w}}) & \text{if} \quad \mst_{\mathbf{s}}[0] \leqslant \st[I_{\mathrm{a}}]_{\mathrm{b}} \; \\ \quad &\wedge\; I_{\mathrm{e}} < 1024\\ \big(\st, \mst_{\mathrm{g}}, \varnothing\big) & \text{otherwise} \end{cases}$ \\
 &&&& $\st^* \equiv \st \quad \text{except} \quad \st^*[I_{\mathrm{a}}]_{\mathrm{n}} = \st[I_{\mathrm{a}}]_{\mathrm{n}} + 1$ \\
 % &&&& $A' \equiv A \Cup A^+$ which abbreviates: $A'_{\mathbf{s}} \equiv A_{\mathbf{s}} \cup A^+_{\mathbf{s}} \quad \wedge \quad A'_{\mathbf{l}} \equiv A_{\mathbf{l}} \cdot A^+_{\mathbf{l}} \quad \wedge$ \\
 % &&&& $A'_{\mathbf{t}} \equiv A_{\mathbf{t}} \cup A^+_{\mathbf{t}} \wedge \quad A'_{\mathbf{r}} \equiv A_{\mathbf{r}} + A^+_{\mathbf{r}}$ \\
@@ -547,7 +547,7 @@ When querying other block numbers, the returned result is always $0$.\\
 &&&& $\mathbf{i} \equiv \mst_{\mathbf{m}}[ \mst_{\mathbf{s}}[3] \dots (\mst_{\mathbf{s}}[3] + \mst_{\mathbf{s}}[4] - 1) ]$ \\
 &&&& $(\st', g', A^+, \mathbf{o}) \equiv \begin{cases}
 	\begin{array}{l}
-		\Theta(\st, I_{\mathrm{a}}, I_{\mathrm{o}}, t, I_\vec{t}\cdot I_a,I_i, t, C_{\text{\tiny CALLGAS}}(\mst),\\ \quad I_{\mathrm{p}}, \mst_{\mathbf{s}}[2], \mst_{\mathbf{s}}[2], \mathbf{i}, I_{\mathrm{e}} + 1, I_{\mathrm{w}}\;\wedge\; r)\end{array} & 
+		\Theta(\st, I_c, I_{\mathrm{a}}, I_{\mathrm{o}}, t, I_\vec{t}\cdot I_a,I_i, t, C_{\text{\tiny CALLGAS}}(\mst),\\ \quad I_{\mathrm{p}}, \mst_{\mathbf{s}}[2], \mst_{\mathbf{s}}[2], \mathbf{i}, I_{\mathrm{e}} + 1, I_{\mathrm{w}}\;\wedge\; r)\end{array} & 
 		\text{if} \quad p\\ 
 	(\st, g, \varnothing, \emptystring) & 
 	\text{otherwise} 
@@ -594,7 +594,7 @@ G_{newaccount} & \text{if} \quad \mathtt{DEAD}(\st, \mst_{\mathbf{s}}[1] \mod 2^
 &&&& $(\st', g', A^+, \mathbf{o}) \equiv 
 \begin{cases}
 	\begin{array}{l}
-		\Theta(\st^*, I_{\mathrm{a}}, I_{\mathrm{o}}, I_{\mathrm{a}}, I_\vec{t}\cdot I_a, I_i, \\
+		\Theta(\st^*, I_c, I_{\mathrm{a}}, I_{\mathrm{o}}, I_{\mathrm{a}}, I_\vec{t}\cdot I_a, I_i, \\
 		\quad t, C_{\text{\tiny CALLGAS}}(\mst),I_{\mathrm{p}}, \mst_{\mathbf{s}}[2], \\ 
 		\quad  \mst_{\mathbf{s}}[2], \mathbf{i}, I_{\mathrm{e}} + 1, I_{\mathrm{w}})
 	\end{array} 
@@ -621,7 +621,7 @@ G_{newaccount} & \text{if} \quad \mathtt{DEAD}(\st, \mst_{\mathbf{s}}[1] \mod 2^
 &&&& $(\st', g', A^+, \mathbf{o}) \equiv 
 \begin{cases}
 	\begin{array}{l}
-		\Theta(\st^*, I_{\mathrm{s}}, I_{\mathrm{o}}, I_{\mathrm{a}}, I_\vec{t}\cdot I_a, I_i ,t, C_{\text{\tiny CALLGAS}}(\mst), \\\quad I_{\mathrm{p}}, 0, I_{\mathrm{v}}, \mathbf{i}, I_{\mathrm{e}} + 1, I_{\mathrm{w}})
+		\Theta(\st^*, I_c, I_{\mathrm{s}}, I_{\mathrm{o}}, I_{\mathrm{a}}, I_\vec{t}\cdot I_a, I_i ,t, C_{\text{\tiny CALLGAS}}(\mst), \\\quad I_{\mathrm{p}}, 0, I_{\mathrm{v}}, \mathbf{i}, I_{\mathrm{e}} + 1, I_{\mathrm{w}})
 	\end{array} & \text{if} \quad p
 	 \\
 	(\st, g, \varnothing, \emptystring) & \text{otherwise} 
@@ -665,4 +665,3 @@ G_{newaccount} & \text{if} \quad n \\
 % 	\toprule
 
 % \end{tabu}
-

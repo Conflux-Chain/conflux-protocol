@@ -84,38 +84,34 @@ More specifically, the block $\block$ with header $\head(\block)$ has quality
 \subsection{Difficulty Adjustment}
 \label{sec:difficulty}
 
-
-The difficulty is adjusted according to the block generation rate in the past.
+The difficulty is adjusted according to the block generation rate in the past every $\tau$ epochs, where $\tau=\difficultyadjustperiod$ before CIP-86 and $\tau=250$ after CIP-86.
 More specifically,
-we estimate the current computing power of all miners from the number of blocks in the last $\difficultyadjustperiod$ epochs and the average timestamps of blocks in the beginning and ending epochs,
-and then set the target difficulty for the next $\difficultyadjustperiod$ epochs such that the expected block generation rate should be roughly one block per $\blocktime$ seconds.
+we estimate the current computing power of all miners from the number of blocks in the last $\tau$ epochs and the average timestamps of blocks in the beginning and ending epochs,
+and then set the target difficulty for the next $\tau$ epochs such that the expected block generation rate should be roughly one block per $\blocktime$ seconds.
 
 Formally,
-for $0\le j\le \difficultyadjustperiod$,
+for $0\le j\le \tau$,
 the target difficulty of a block at height $j$ is set to $\mathbf{d}_0\eqdef {\startdifficulty=\startdifficultyline}$;
 for any positive integer $i\ge 1$,
-the target difficulty of blocks at height $j\in [\difficultyadjustperiod i+1,\difficultyadjustperiod i+\difficultyadjustperiod]$ is set to $\mathbf{d}_i \in\N_{256}$ such that
+the target difficulty of blocks at height $j\in [\tau i+1,\tau (i+1)]$ is set to $\mathbf{d}_i \in\N_{256}$ such that
 
 \newversion{
-	\begin{align}
-		\mathbf{d}_i \eqdef 
-		\begin{cases}
-			\lfloor \mathbf{d}_{i-1} \times \diffup \rfloor & \text{if $\mathbf{d}'_i> \mathbf{d}_{i-1} \times \diffup$}\\
-			\lceil \mathbf{d}_{i-1} \times \diffdown \rceil & \text{if $\mindifficulty\le \mathbf{d}'_i< \mathbf{d}_{i-1} \times \diffdown$}\\
-			\mindifficulty & \text{if $\mathbf{d}'_i < \mindifficulty$}\\
-			\mathbf{d}'_{i} & \text{otherwise ($\mathbf{d}_{i-1} \times \diffdown \le \mathbf{d}'_i \le \mathbf{d}_{i-1} \times \diffup$)}
+	\begin{align}\label{eq:difficulty_adjust}
+		\mathbf{d}_i \eqdef \begin{cases}
+			\min(\max(\mathbf{d}', 20G, \lceil \mathbf{d}_{i-1} \times \diffdown \rceil),\lfloor  \mathbf{d}_{i-1} \times \diffup \rfloor) & \text{Before CIP-86} \\
+			\min(\max(0.2\mathbf{d}'+0.8\mathbf{d}_{i-1}, 20G),\lfloor  \mathbf{d}_{i-1} \times \diffup \rfloor) & \text{After CIP-86}
 		\end{cases}
 	\end{align}
 	where $\mathbf{d}'_i\in\N_{256}$ is the estimation of ideal target difficulty defined as follows
 	\begin{align}
-		% \mathbf{d}'_i\eqdef \mathbf{d}_{i-1} \times \blocktime \times {\sum_{j=1}^{\difficultyadjustperiod}|\epoch_{\difficultyadjustperiod i+j}|}/
-		% {\left(\frac{\sum_{\block'\in\epoch_{\difficultyadjustperiod i}} \block'_{\head_s}}{|\epoch_{\difficultyadjustperiod i}|} - \frac{\sum_{\block'\in\epoch_{\difficultyadjustperiod(i-1)}} \block'_{\head_s}}{|\epoch_{\difficultyadjustperiod(i-1)}|} \right)}
+		% \mathbf{d}'_i\eqdef \mathbf{d}_{i-1} \times \blocktime \times {\sum_{j=1}^{\tau}|\epoch_{\tau i+j}|}/
+		% {\left(\frac{\sum_{\block'\in\epoch_{\tau i}} \block'_{\head_s}}{|\epoch_{\tau i}|} - \frac{\sum_{\block'\in\epoch_{\tau(i-1)}} \block'_{\head_s}}{|\epoch_{\tau(i-1)}|} \right)}
 		\mathbf{d}'_i\eqdef \mathbf{d}_{i-1} \times \blocktimeunix \times 
-		\left({\sum_{j=\difficultyadjustperiod (i-1)+1}^{\difficultyadjustperiod i}|\epoch_{j}|} -1\right)/
-		{\left( \head\left(\block^{(\difficultyadjustperiod i)}\right)_{s} - \min_{\difficultyadjustperiod (i-1)\le j< \difficultyadjustperiod i \;\land\; \head\left(\block^{\left(j\right)}\right)_{s}\ne 0}\set{ \head\left(\block^{\left(j\right)}\right)_{s} } \right)}
+		\left({\sum_{j=\tau (i-1)+1}^{\tau i}|\epoch_{j}|} -1\right)/
+		{\left( \head\left(\block^{(\tau i)}\right)_{s} - \min_{\tau (i-1)\le j< \tau i \;\land\; \head\left(\block^{\left(j\right)}\right)_{s}\ne 0}\set{ \head\left(\block^{\left(j\right)}\right)_{s} } \right)}
 	\end{align}
 	where for every $k\in\N$, $\epoch_k$ denotes the set of \emph{fully valid} blocks in the $k$-th epoch and $\block^{(k)}$ denotes the pivot block in $\epoch_k$.
-	In the above formula the total number of blocks in last $\difficultyadjustperiod$ epochs is decreased by $1$, which leads to an unbiased estimation of block generation rate.
+	In the above formula the total number of blocks in last $\tau$ epochs is decreased by $1$, which leads to an unbiased estimation of block generation rate.
 }
 
 Note that a single block $\block$ may not have a global view.
@@ -124,7 +120,7 @@ In particular, a block $\block$ at height $h\eqdef \head\left(\block\right)_h$ s
 \begin{align}
 	\head\left(\block\right)_d\eqdef \begin{cases}
 		\mathbf{d}_0 & h= 0\\
-		\mathbf{d}_{\left\lfloor \frac{ h-1}{\difficultyadjustperiod} \right\rfloor} & \mbox{$h>0$, $\mathbf{d}_{\left\lfloor \frac{ h-1}{\difficultyadjustperiod} \right\rfloor}$ is  calculated with respect to $\past(\block)$}
+		\mathbf{d}_{\left\lfloor \frac{ h-1}{\tau} \right\rfloor} & \mbox{$h>0$, $\mathbf{d}_{\left\lfloor \frac{ h-1}{\tau} \right\rfloor}$ is  calculated with respect to $\past(\block)$}
 	\end{cases} 
 \end{align}
 
@@ -135,7 +131,7 @@ Formally,
 \begin{align}
 	\mathbf{d}_{\epoch_k}\eqdef \head\left( \block^{(k)} \right)_d
 \end{align}
-where $ \head\left( \block^{(k)} \right)_d$ is the {\bf difficulty} field in $\block^{(k)}$'s header and it equals to $\mathbf{d}_{\left\lfloor \frac{k-1}{\difficultyadjustperiod} \right\rfloor}$ derived from the past view of $\block^{(k)}$.
+where $ \head\left( \block^{(k)} \right)_d$ is the {\bf difficulty} field in $\block^{(k)}$'s header and it equals to $\mathbf{d}_{\left\lfloor \frac{k-1}{\tau} \right\rfloor}$ derived from the past view of $\block^{(k)}$.
 
 
 % \paragraph{Threshold condition.}

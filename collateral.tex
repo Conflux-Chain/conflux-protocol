@@ -52,7 +52,9 @@ The world state also maintains the total number of locked tokens for collateral,
 
 \subsection{Storage writing}\label{sec:storage_maintain}
 
-In order to refund the storage collateral to payer when the storage entry is released, Conflux must track the owner for each storage entry. Here we formally describe the storage writing function $\Phi(\st,a,k,v,o)$, which sets storage entry $k$ of account $a$ to value $v$ and address $o$ is the storage owner. It returns updated world-state $\st'$ and a substate $A$.
+In order to refund the storage collateral to payer when the storage entry is released, Conflux must track the owner for each storage entry. Here we formally describe the storage writing function $\Phi(\st,p,a,k,v,o)$, which sets storage entry $k$ of account $a$ at space $p$ to value $v$ and address $o$ is the storage owner. It returns updated world-state $\st'$ and a substate $A$.
+
+\paragraph{In core space.}
 
 \begin{align}
 	\st'   &\eqdef \st \qquad \mbox{  except:}\\ 
@@ -82,3 +84,5 @@ There are five special storage entries in staking vote contract $\stakingcontrac
 \end{align}
 
 These five storage entries can only be accessed by the internal contract. In this document, we don't use function $\Phi$ when dealing with these entries and thus function $\Phi$ does not need to consider this special case. 
+
+\paragraph{In eSpace.}
