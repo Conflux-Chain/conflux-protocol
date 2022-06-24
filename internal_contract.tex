@@ -3,7 +3,12 @@
 \label{sec:internal}
 \name introduces several built-in internal contracts for better system maintenance and on-chain governance.
 %
-They provide solidity-like interface for developers. The interface list and their gas consumptions are list in section~\ref{sec:internal_gas}. Section~\ref{sec:internal_contract} formally describes the behavior of internal contracts. In this section, we introduce the high-level design of internal contracts. 
+They provide solidity-like interface for developers. 
+%
+In this section, we introduce the high-level design of internal contracts. 
+%
+For more details, please refer to the \href{https://developer.confluxnetwork.org/conflux-rust/internal_contract/internal_contract/}{developer documents for internal contracts}.
+% The interface list and their gas consumptions are list in section~\ref{sec:internal_gas}. %Section~\ref{sec:internal_contract} formally describes the behavior of internal contracts.
 
 
 \subsection{Sponsorship for Usage of Contracts}
@@ -226,3 +231,26 @@ Less than three month (i.e. $< 15768000$ blocks) & $0$ \\
 \end{center}
 \par
 Therefore the total voting power of each account can be easily calculated from its freezing rules as recorded in the staking contract.
+
+\subsection{Context access (Since CIP-64)}
+
+The context access internal contract allows the smart contracts to read the status of the consensus protocol, e.g., the epoch numbers. 
+
+\subsection{Cross-space call (Since CIP-90)}
+
+An account can only send transaction in its own space, and the transaction can only access the accounts in the same space. 
+%
+The cross-space call allows a core space account to interact with eSpace accounts. Each core space account with address $a\in\Byte_{160}$ corresponds to a mirror account $\mathsf{Mir}(a)$ in eSpace, where $\mathsf{Mir}(a)$ is defined by:
+%
+\begin{equation}
+	\mathsf{Mir}(a) = \kec(a)[96..255]
+\end{equation} 
+
+In execution of a transaction, when a core space account with address $a$ accessing the cross-space call internal contract with value $v$ to interact with an eSpace account $\account$, this internal contract first transfer the balance to the mirror address $\mathsf{Mir}(a)$ of the sender (with no message call) and makes a message call to eSpace account $\account$ in name of the mirror address $\mathsf{Mir}(a)$ with the same value $v$. 
+%
+The cross-space call internal contract only supports $\mathsf{CALL}$ and $\mathsf{STATICCALL}$ and does not support $\mathsf{CALLCODE}$ or $\mathsf{DELEGATECALL}$. The original sender $o$ inside the eSpace is the mirror address of the transaction sender $\mathsf{Mir}(\sender{\tx})$. 
+%
+Since the core space has a much more sufficient quota in gas limit than the eSpace, to avoid abusing of cross-space call, the cross-space call limits the gas passed from the core space to the eSpace. Specifically, only 1/10 of left gas can be passed to the message call in eSpace.
+
+A core space account can withdraw balance from its mirror address in eSpace. We notice that a pair of private/public key controls one account in each space. The mirror account of a core space account and the eSpace account controlled by the same private key are two individual and independent account. 
+

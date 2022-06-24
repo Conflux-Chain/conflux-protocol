@@ -8,14 +8,28 @@ In an overview, the {\name} world-state consists of a list of accounts and the a
 The {\name} blockchain stores all processed transactions in blocks, together with necessary information in block headers which enables a total ordering of all blocks.
 In this section we discuss the meaning of accounts, transactions and blocks in more details.
 
+\subsection{Spaces (Since CIP-90)}\label{sec:spaces}
+
+Since CIP-90, Conflux has two spaces: the core space (represented by ${\sf Core}$) and the eSpace (represented by ${\sf EVM}$). $\Space=\{\mathsf{Core},\mathsf{eSpace}\}$ denotes the currently supported spaces.
+%
+ESpace is a special space which adopts the format of addresses and transactions in Ethereum. So Ethereum clients can interact with eSpace directly. 
 
 \subsection{Accounts}
 \label{subsec:accounts}
 
 The {\name} global state is described in an account model, with the basic storage component called an \emph{account}.
-Every actor, which is either a person or an entity that is able to interact with the {\name} world, has its necessary information stored in an account $\account$  as a key/value pair $(\account_{addr}, \account_{state})$ of address and corresponding states. 
-The account address $\account_{addr}$ is a 160-bit identifier. The account state $\account_{state}= (\account_{basic},\account_{code}, \account_{storage},\account_{deposit},\account_{vote})$ consists of five components. The account basic state $\account_{state}$, the code info $\account_{code}$, the deposit list $\account_{deposit}$ and the vote list $\account_{vote}$ are four serialized sequences in an $\rlp$ structure (c.f. \cite{ETH_yellow}). The account storage $\account_{storage}$ is a set of key-value pairs which map 256-bit address to a serialized storage information in an $\rlp$ structure. 
-Furthermore we note that each account $\account$ is associated with a pair of public key and private key $\left(\account_{pubkey}, \account_{prikey}\right)$.
+Every actor, which is either a person or an entity that is able to interact with the {\name} world, has its necessary information stored in an account $\account$ as a key/value pair $((\account_{addr},\account_{space}), \account_{state})$ of address-space pairs and corresponding states. 
+%
+The account address $\account_{addr}$ is a 160-bit identifier. The account space $\account_{space}$ belongs to  $\Space$. The account state $\account_{state}= (\account_{basic},\account_{code}, \account_{storage},\account_{deposit},\account_{vote})$ consists of five components. The account basic state $\account_{state}$, the code info $\account_{code}$, the deposit list $\account_{deposit}$ and the vote list $\account_{vote}$ are four serialized sequences in an $\rlp$ structure (c.f. \cite{ETH_yellow}). The account storage $\account_{storage}$ is a set of key-value pairs which map 256-bit address to a serialized storage information in an $\rlp$ structure.
+
+For succinctness and convenience, and as long as there is no ambiguity, we will write $\account$ without subscript for the state of an account and let $a\eqdef \account_{addr}, p\eqdef \account_{space}$ denote the corresponding address and space.
+
+\subsubsection{Addresses}
+%
+For any space, each account $\account$ is associated with a pair of public key and private key $\left(\account_{pubkey}, \account_{prikey}\right)$. The account addresses derive from public keys with different rules in different spaces. Each private-public key pair can correspond to multiple accounts in different spaces. 
+
+\paragraph{Core space}
+
 The account address is the concatenation of $4$-bit type indicator and a $156$-bit digest of the associated public key: 
 \begin{equation}\label{eq:account-address}
 	\account_{addr} \eqdef \mathsf{Type}_{\account} \circ \kec \left( \account_{pubkey} \right)[100\dots 255]
@@ -24,8 +38,14 @@ where $\mathsf{Type}_{\account}\in \B_4$ is the type indicator,
 which is $\mathsf{Type}_{\account}=\typenormal$ for \emph{normal accounts} (a.k.a. \emph{non-contract accounts}), $\mathsf{Type}_{\account}=\typecontract$ for \emph{(Solidity) contracts},
 and $\mathsf{Type}_{\account}=\typereserved$ for \emph{built-in/reserved contracts} (a.k.a. \emph{``precompiled contracts''}).
 
+\paragraph{ESpace}
 
-For succinctness and convenience, and as long as there is no ambiguity, we will write $\account$ without subscript for the state of an account and let $a\eqdef \account_{addr}$ denote the corresponding address.
+The account address is the $160$-bit digest of the associated public key: 
+\begin{equation}
+	\account_{addr} \eqdef \kec \left( \account_{pubkey} \right)[96\dots 255]
+\end{equation}
+
+\subsubsection{Account state}
 
 \paragraph{Basic state}
 
@@ -116,25 +136,28 @@ In initialization of each component, Conflux sets all the bit values, byte value
 \end{align}
 
 %
-Given the {\name} world-state $\st$ and an address $a\in\B_{160}$, we denote by $\st [a]$ for the state $\account_{state}$ of the account $\account$ with address $a=\account_{addr}$, i.e. $\st [a] \eqdef \account_{state}$.
+Given the {\name} world-state $\st$, an address $a\in\B_{160}$ and a space $p\in \Space$, we denote by $\st [(a,p)]$ for the state $\account_{state}$ of the account $\account$ at space $p$ with address $a=\account_{addr}$, i.e. $\st [(a,p)] \eqdef \account_{state}$.
 % \left(\account_n, \account_b, \account_s, \account_c \right)$.
-We denote by $\st[a]\eqdef \varnothing$ if the account with address $a$ is never initialized. 
-%
-For succinctness, we denote by $\st[a]_{\bf s}$ for storage component $\account_{storage}$, $\st[a]_{\bf v}$ for staking vote component $\st[a]_{vote}$ and $\st[a]_{\bf d}$ for deposit component $\st[a]_{deposit}$. 
+We denote by $\st[(a,p)]\eqdef \varnothing$ if the account at space $p$ with address $a$ is never initialized. 
 
-The world-state $\st$ never stores the account state $\account_{state}$ equals to initialization value $\account^0$. So $\st[a]\eqdef \varnothing$ is equivalent to $\st[a]\eqdef \account^0$. For the key value structure components $\account_{\bf s}$ and $\account_{\bf v}$, we also use the notation $\varnothing$ and zero initialization value interchangeably.
+For backward compatible with the earlier version, when $\st$ is indexed by a single address $a$, it refers to the account at core space with address $a$, i.e., $\st[a]\eqdef\st[(a,p)]$.
 
-\subsection{Hash Digest of World-State}
+For succinctness, we denote by $\st[(a,p)]_{\bf s}$ for storage component $\account_{storage}$, $\st[(a,p)]_{\bf v}$ for staking vote component $\st[(a,p)]_{vote}$ and $\st[(a,p)]_{\bf d}$ for deposit component $\st[(a,p)]_{deposit}$. 
 
-\subsubsection{State entries}
+The world-state $\st$ never stores the account state $\account_{state}$ equals to initialization value $\account^0$. So $\st[(a,p)]\eqdef \varnothing$ is equivalent to $\st[(a,p)]\eqdef \account^0$. For $\account_{\bf s}$ and $\account_{\bf v}$, we also use the notation $\varnothing$ and zero initialization value interchangeably.
 
-Conflux encodes each component of each account in format of $(k,v)\in \B^*\times \B^*$ respectively. 
+\subsection{Storage Layout}
+
+Conflux utilizes a backend in format of key-value pairs to store the accounts. There are five types of entries in total. 
 
 \paragraph{Basic entry.} The basic entry stores basic components $\account_{basic}$ if $\account_{basic}\neq \account^0_{basic}$. Specially, for a non-contract address, Conflux doesn't stores the fields only related to contract, like code hash $\account_c$, contract admin $\account_a$ and sponsor info $\account_p$. Let $\account_{basic\_smp}\eqdef (\account_n, \account_b, \account_t, \account_o, \account_r)$ denote the basic component with only the fields in a normal address. Formally
 \begin{align}
-	&k\eqdef \alpha_{addr}\\
+	&k\eqdef \left\{\begin{array}{ll}
+		\alpha_{addr} & \account_{space}=\mathsf{Core} \\
+		\alpha_{addr}\cdot [80]_{16} & \account_{space}=\mathsf{eSpace}
+	\end{array}\right.\\
 	&v\eqdef \left\{\begin{array}{ll}
-		\rlp(\account_{basic}) & \mathsf{Type}_\alpha=[1000]_2 \\
+		\rlp(\account_{basic}) & \mathsf{Type}_\alpha=[1000]_2\;\wedge\;\account_{space}=\mathsf{Core} \\
 		\rlp(\account_{basic\_smp}) & \mathsf{otherwise}
 	\end{array}\right.
 \end{align}
@@ -143,7 +166,10 @@ Conflux encodes each component of each account in format of $(k,v)\in \B^*\times
 
 \paragraph{Storage entry.} The storage entry stores all the storages in $\account_{\bf s}$. Given account $\alpha$ with address $\alpha_{addr}$, for each storage key $s\in \B_{256}$ with $\account_{\bf s}[s]_v\neq 0$, we have 
 \begin{align}
-	k&\eqdef \alpha_{addr}\cdot [{\sf data}]_{\sf ch}\cdot s \\
+	k&\eqdef \left\{\begin{array}{ll}
+		\alpha_{addr}\cdot [{\sf data}]_{\sf ch}\cdot s & \account_{space}=\mathsf{Core} \\
+		\alpha_{addr}\cdot [80]_{16} \cdot [{\sf data}]_{\sf ch}\cdot s & \account_{space}=\mathsf{eSpace}
+	\end{array}\right.\\
 	v&\eqdef \left\{ \begin{array}{ll}
 		\rlp\left(\account_{\bf s}[s]_v\right) & \alpha_{addr} = \account_{\bf s}[s]_o \\ 
 		\rlp\left(\account_{\bf s}[s]_v\right) & \alpha_{addr} = a_{\sf stake} \;\wedge\; k \in \{k_1,k_2,k_3,k_4,k_5\} \\ 
@@ -162,17 +188,23 @@ There are five special storage entries storing some statistic information about 
 
 \paragraph{Storage root entry.} The storage root entry stores the storage layout entry for account $\account$ if $\mathsf{Type}_{\account_{addr}}\in \{\typereserved,\typecontract\}$ and $\account_n\neq 0$. 
 \begin{align}
-	&k\eqdef \alpha_{addr}\cdot [{\sf data}]_{\sf ch}\\
+	&k\eqdef \left\{\begin{array}{ll}
+		\alpha_{addr} \cdot [{\sf data}]_{\sf ch}& \account_{space}=\mathsf{Core} \\
+		\alpha_{addr}\cdot [80]_{16}\cdot [{\sf data}]_{\sf ch} & \account_{space}=\mathsf{eSpace}
+	\end{array}\right.\\
 	&v\eqdef [0000]_{16}
 \end{align}
 
 \paragraph{Code entry.} The code entry stores the component code info $\account_{code}$ if $\account_{code}\neq  \account^0_{code}$. 
 \begin{align}
-	&k\eqdef \alpha_{addr}\cdot [{\sf code}]_{\sf ch}\cdot \alpha_c  \\
+	&k\eqdef \left\{\begin{array}{ll}
+		\alpha_{addr} \cdot [{\sf code}]_{\sf ch}\cdot \alpha_c& \account_{space}=\mathsf{Core} \\
+		\alpha_{addr}\cdot [80]_{16}\cdot [{\sf code}]_{\sf ch}\cdot \alpha_c & \account_{space}=\mathsf{eSpace}
+	\end{array}\right.\\
 	&v\eqdef \rlp(\account_{code})
 \end{align}
 
-\paragraph{Staking vote list entry.} The staking vote list entry stores the component staking vote list $\account_{vote}\neq  \account^0_{vote}$. 
+\paragraph{Staking vote list entry.} The staking vote list entry stores the component staking vote list $\account_{vote}\neq  \account^0_{vote}$ for $\mathsf{Core}$ space accounts only.
 \begin{align}
 	k&\eqdef \alpha_{addr}\cdot [{\sf vote}]_{\sf ch}  \\
 	v&\eqdef \rlp(\tolist(\account'_{vote}))\\
@@ -180,7 +212,7 @@ There are five special storage entries storing some statistic information about 
 	\account'_{vote} &\eqdef \mbox{$\account_{vote}$ removing all the key $x$ with $\account_{vote}[x]=\account_{vote}[x-1]$}
 \end{align}
 
-\paragraph{Deposit list entry.} The deposit list entry stores the component deposit list $\account_{deposit}\neq  \account^0_{deposit}$. 
+\paragraph{Deposit list entry.} The deposit list entry stores the component deposit list $\account_{deposit}\neq  \account^0_{deposit}$ $\mathsf{Core}$ space accounts only.
 \begin{align}
 	&k\eqdef \alpha_{addr}\cdot [{\sf deposit}]_{\sf ch}  \\
 	&v\eqdef \rlp(\account_{deposit})
@@ -194,7 +226,11 @@ Formally, at any time, Conflux maintains three key/value sets $T_0,T_1,T_2$, whi
 %
 \begin{align}
 	&p\eqdef\kec(\trie(T_0),\trie(T_1)) \\
-	&f_{addr}(\alpha_{addr},p)\eqdef\kec(p[0..11]\cdot \alpha_{addr})[0..11]\cdot \alpha_{addr} \\ 
+	&f_{addr}(\alpha_{addr},p)\eqdef\kec(p[0..11]\cdot \alpha_{addr})[0..11]\cdot \alpha_{addr}\cdot
+	\left\{\begin{array}{ll}
+		\varepsilon & \alpha_{space} = \mathsf{Core} \\ 
+		\text{}[80]_{16} & \alpha_{space}=\mathsf{eSpace}
+	\end{array}\right.\\
 	&f_{store}(s,p)\eqdef \kec(p\cdot s)[4..31]\cdot s\\
 	&\text{(The index here are applied on byte-level.)} \notag
 \end{align}
@@ -271,9 +307,11 @@ Both types of transactions share the following common fields:
 
 	\item \newversion{{\bf epochHeight:} A scalar value specifying the range of epochs where $\tx$ can be executed. Formally denoted by $\tx_e\in\N_{64}$ such that $\tx$ can only be executed between the epochs of $[\tx_e - \txepochbound, \tx_e + \txepochbound]$. }
 
-	\item \newversion{{\bf chainID:} A binary chain id indicating where $\tx$ is intended to be executed. Formally denoted by $\tx_c\in\N_{32}$ and the chain id of {\name} is a constant $\tx_c=\chainid$.} 
+	\item \newversion{{\bf chainID:} A binary chain id indicating where $\tx$ is intended to be executed. Formally denoted by $\tx_c\in\N_{32}$ and the chain id of {\name} is a constant $\tx_c=\chainid$ (for core space) or $\tx_c=\evmchainid$ (for eSpace).} 
 
-	\item {\bf v, r, s:} Corresponding fields of the recoverable ECDSA signature of $\tx$, formally denoted by $\tx_w$, $\tx_r$ and $\tx_s$. 
+	\item {\bf v, r, s:} Corresponding fields of the recoverable ECDSA signature of $\tx$, formally denoted by $\tx_{sigv}$, $\tx_{sigr}$ and $\tx_{sigs}$. 
+	
+	\item {\bf spaces:} The space this transaction belongs to, formally denoted by $\tx_s$. The eSpace transactions do not have the fileds {\bf storageLimit} and {\bf epochHeight}. The field {\bf chainID} is optional for eSpace transactions. 
 \end{itemize}
 
 \smallskip
@@ -285,18 +323,37 @@ a transaction may contain either of the following fields of unlimited length byt
 
 
  	\item {\bf data:} A byte array specifying the input data of the message call to an existing contract, formally denoted by $\tx_{\bf d}\in \Byte^*$.
+\end{itemize} 
 
- \end{itemize} 
+$\tx_{\bf m}$ denotes the associated message $\tx_{\bf i}$ or $\tx_{\bf d}$. Formally, 
+
+\begin{align}
+	\tx_{\bf m}\eqdef\begin{cases}
+		\tx_{\bf i} & \mbox{if $\tx_a=\varepsilon$,}\\
+		\tx_{\bf d} & \mbox{otherwise.}
+	\end{cases}
+\end{align}
+
 
 There is a function $\sender{\cdot}$ that maps a transaction to its sender using the recoverable ECDSA signature,
-i.e. $\sender{\tx}$ henceforth represents the sender of the transaction $\tx$.
+i.e. $\sender{\tx}$ henceforth represents the sender of the transaction $\tx$. The hash of a transaction for sign is computed as follows
+\begin{align}
+	\begin{cases}
+		\kec(\rlp(\tx_n, \tx_p, \tx_g, \tx_a, \tx_v, \newversion{\tx_\ell,\tx_e,\tx_c,} \tx_{\bf m})), & \tx_s=\mathsf{Core},\\ 
+		\kec(\rlp(\tx_n, \tx_p, \tx_g, \tx_a, \tx_v, \tx_{\bf m}, \tx_c, \varepsilon,\varepsilon)), & \tx_s=\mathsf{eSpace} \;\wedge\;\tx_c\neq\emptyset,\\
+		\kec(\rlp(\tx_n, \tx_p, \tx_g, \tx_a, \tx_v, \tx_{\bf m})), & \tx_s=\mathsf{eSpace} \;\wedge\;\tx_c=\emptyset.\\
+	\end{cases}
+\end{align}
+
+
 % 
-For convenience, we further introduce the function $L_{\tx}$ that parses a transaction $\tx$ as follows:
+We further introduce the function $L_{\tx}$ that organizes a transaction $\tx$ as follows:
 \begin{align}\label{def:tx_prepare}
 	L_{\tx}(\tx)\eqdef 
 	\begin{cases}
-	\left(\tx_n, \tx_p, \tx_g, \tx_a, \tx_v, \newversion{\tx_\ell,\tx_e,\tx_c,} \tx_{\bf i}, \tx_w,\tx_r,\tx_s \right) & \mbox{if $\tx_a=\emptystring$} \\
-	\left(\tx_n, \tx_p, \tx_g, \tx_a, \tx_v, \newversion{\tx_\ell,\tx_e,\tx_c,} \tx_{\bf d}, \tx_w,\tx_r,\tx_s \right) & \mbox{otherwise}
+	\left((\tx_n, \tx_p, \tx_g, \tx_a, \tx_v, \newversion{\tx_\ell,\tx_e,\tx_c,} \tx_{\bf m}), \tx_{sigv},\tx_{sigr},\tx_{sigs} \right) & \tx_s=\mathsf{Core}, \\
+	\left(\tx_n, \tx_p, \tx_g, \tx_a, \tx_v, \tx_{\bf m}, \tx_{sigv}+35+2\cdot \tx_c,\tx_{sigr},\tx_{sigs} \right) & \tx_s=\mathsf{eSpace} \;\wedge\; \tx_c\neq\emptyset, \\
+	\left(\tx_n, \tx_p, \tx_g, \tx_a, \tx_v, \tx_{\bf m}, \tx_{sigv}+27,\tx_{sigr},\tx_{sigs} \right) & \tx_s=\mathsf{eSpace} \;\wedge\; \tx_c=\emptyset.
 	\end{cases}
 \end{align}
 

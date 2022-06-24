@@ -24,6 +24,8 @@ Throughout this document, we use the following conventional notations:
 	\item Numbers are in decimal base by default. Binary numbers are indicated with square brackets with subscripts, e.g. $[0100]_2$ is the $4$-bit binary representation of $4$. The subscript \textsf{ch} represents the character representation of bit string, e.g. $[{\sf ab}]_{\sf ch}=[6162]_{16}=[0110000101100010]_2$.
 
 	\item When interpreting 256-bit binary values from $\N_{256}$ as integers, the representation is big-endian.
+	
+	\item (Since CIP-90). Conflux has two spaces: the core space (denoted by $\sf Core$) and the eSpace (denoted by $\sf EVM$). $\Space$ denotes all the space. Currently, $\Space\eqdef\{\mathsf{Core},\mathsf{EVM}\}$. 
 
 	\item When a 256-bit machine datum in $\B_{256}$ is converted to and from a 160-bit address or hash in $\B_{160}$, the rightwards (low-order for BE) 160 bits (20 bytes) are used and the leftmost 96 bits (12 bytes) are discarded or filled with zeros, thus the integer values (when the bytes are interpreted as big-endian) are equivalent.
 

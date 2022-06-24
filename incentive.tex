@@ -31,8 +31,8 @@ We refer to the global parameter as the \emph{base block award} or simply \emph{
 	\begin{align}
 		\baseaward(\block)&\eqdef
 		\begin{cases}
-			\initialblockreward \times 10^{18} & \mbox{if $\block_{\head_h}<\tanzaniteepoch$} \\
-			\tanzanitebasereward \times 10^{18} & \mbox{if $\block_{\head_h}\ge \tanzaniteepoch$}
+			\initialblockreward \times 10^{18} & \mbox{if $\block_{\head_h}<\tanzaniteepoch$ (before CIP-40)} \\
+			\tanzanitebasereward \times 10^{18} & \mbox{if $\block_{\head_h}\ge \tanzaniteepoch$ (after CIP-40)} 
 		\end{cases}
 	\end{align}
 

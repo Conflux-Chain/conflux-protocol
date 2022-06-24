@@ -4,8 +4,9 @@
 
 \section{Contract destruction}\label{sec:contract_destruct}
 
-The contract destruction function $\Psi(\st,A)$ updates the world state $\st$ and substate $A$ and outputs $(\st',A')$. Formally, function $\Psi$ is defined as follows.
+The contract destruction function $\Psi(\st,A,p)$ updates the world state $\st$ and substate $A$ and outputs $(\st',A')$ at space $p$. Formally, function $\Psi$ is defined as follows.
 
+For the core space,
 \begin{align}
 	\st'  &\eqdef \st \qquad \mbox{ except:}\\
 	\st'[r] &\equiv \begin{cases}
@@ -23,5 +24,21 @@ The contract destruction function $\Psi(\st,A)$ updates the world state $\st$ an
 	\notag \\
 	A' & \eqdef A \\
 	\mbox{except:} & \\ 
-	A'_{\mathbf{s}} &\eqdef A_{\mathbf{s}} \cup \{I_a\}
+	A'_{\mathbf{s}} &\eqdef A_{\mathbf{s}} \cup \{(I_a,p)\}
+\end{align}
+
+For the eSpace,
+\begin{align}
+	\st'  &\eqdef \st \qquad \mbox{ except:}\\
+	\st'[(r,p)] &\equiv \begin{cases}
+		\varnothing &\text{if}\ \st[(r,p)] = \varnothing\ \wedge\ \st[(I_{a},p)]_{b} = 0\\
+		\begin{array}{l}
+			(\st[(r,p)]_{n}, \st[(r,p)]_{b} + \st[(I_{a},p)]_{b}, \\
+			\quad\st[(r,p)]_{\mathbf{s}}, \st[(r,p)]_{c})
+		\end{array} & \text{if}\ r \neq I_{a} \\
+	\end{cases}\\
+	\notag \\
+	A' & \eqdef A \\
+	\mbox{except:} & \\ 
+	A'_{\mathbf{s}} &\eqdef A_{\mathbf{s}} \cup \{(I_a,p)\}
 \end{align}
